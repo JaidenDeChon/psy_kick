@@ -21,3 +21,6 @@ Thumbs.db
 
 # Bun
 bun.lockb
+
+# Local-only design references / handoff (not part of the app)
+resources for claude/
