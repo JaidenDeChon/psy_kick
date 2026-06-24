@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+  <rect width="800" height="600" fill="#F1EBDD"/>
+  <!-- Grid lines — subtle worksheet feel -->
+  <line x1="0" y1="150" x2="800" y2="150" stroke="#D2C7AC" stroke-width="0.5"/>
+  <line x1="0" y1="300" x2="800" y2="300" stroke="#D2C7AC" stroke-width="0.5"/>
+  <line x1="0" y1="450" x2="800" y2="450" stroke="#D2C7AC" stroke-width="0.5"/>
+  <line x1="200" y1="0" x2="200" y2="600" stroke="#D2C7AC" stroke-width="0.5"/>
+  <line x1="400" y1="0" x2="400" y2="600" stroke="#D2C7AC" stroke-width="0.5"/>
+  <line x1="600" y1="0" x2="600" y2="600" stroke="#D2C7AC" stroke-width="0.5"/>
+  <!-- Center icon — dashed frame -->
+  <rect x="280" y="210" width="240" height="180" rx="2" fill="none" stroke="#C7BB9B" stroke-width="1.5" stroke-dasharray="8 5"/>
+  <!-- Image placeholder icon -->
+  <circle cx="330" cy="265" r="20" fill="none" stroke="#C7BB9B" stroke-width="1.5"/>
+  <polygon points="280,390 360,290 420,350 460,300 520,390" fill="none" stroke="#C7BB9B" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- Label -->
+  <text x="400" y="430" font-family="monospace" font-size="11" fill="#8A8068" text-anchor="middle" letter-spacing="3">target_unseeded</text>
+  <text x="400" y="448" font-family="monospace" font-size="10" fill="#C7BB9B" text-anchor="middle" letter-spacing="2">seed images to reveal</text>
+</svg>

@@ -1,0 +1,23 @@
+# Nuxt build / dev
+.nuxt
+.output
+.netlify
+dist
+node_modules
+.cache
+
+# Env (keep example, never commit secrets)
+.env
+.env.local
+.env.*.local
+
+# Supabase
+supabase/.branches
+supabase/.temp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Bun
+bun.lockb

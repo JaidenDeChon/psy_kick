@@ -1,0 +1,14 @@
+[build]
+  command = "bun run build"
+  publish = ".output/public"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  directory = ".output/server"
+  node_bundler = "esbuild"
+
+[dev]
+  command = "bun run dev"
+  targetPort = 3000
