@@ -177,7 +177,7 @@ function goHistory() {
 }
 
 function finish() {
-  router.push('/')
+  router.push('/history')
 }
 
 onMounted(async () => {
