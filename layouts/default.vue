@@ -34,12 +34,20 @@
 
       <div class="sidebar-footer">
         <div class="footer-user">
-          <div class="footer-avatar">y</div>
+          <div class="footer-avatar">{{ avatarLetter }}</div>
           <div class="footer-user-meta">
-            <div class="footer-user-name">you</div>
+            <div class="footer-user-name">{{ displayName }}</div>
             <div class="footer-user-sub">{{ userSub }}</div>
           </div>
+          <ClientOnly>
+            <button v-if="isPermanent" class="footer-signout" aria-label="sign out" title="sign_out" @click="onSignOut">⎋</button>
+          </ClientOnly>
         </div>
+
+        <ClientOnly>
+          <button v-if="isAnonymous" class="footer-auth" @click="authOpen = true">→ sign_in / sign_up</button>
+        </ClientOnly>
+
         <ClientOnly>
           <button class="footer-theme" @click="toggleTheme">{{ themeLabel }}</button>
           <template #fallback>
@@ -53,6 +61,8 @@
     <main class="app-main">
       <slot />
     </main>
+
+    <AuthDialog v-model:open="authOpen" />
   </div>
 </template>
 
@@ -60,6 +70,18 @@
 const route = useRoute()
 const colorMode = useColorMode()
 const { apiFetch } = useApi()
+
+const { user, handle, isAnonymous, isPermanent, hydrateFromStorage, signOut } = useAuth()
+const authOpen = ref(false)
+
+const displayName = computed(() =>
+  isPermanent.value ? (handle.value || user.value?.email?.split('@')[0] || 'operator') : 'you'
+)
+const avatarLetter = computed(() => displayName.value.charAt(0) || 'y')
+
+async function onSignOut() {
+  await signOut()
+}
 
 const mobileOpen = ref(false)
 
@@ -93,6 +115,7 @@ const userSub = computed(() =>
 )
 
 onMounted(async () => {
+  hydrateFromStorage()
   if (route.path === '/' || sidebarN.value !== null) return
   try {
     const data = await apiFetch<{ stats: { n: number } }>('/api/stats')
@@ -222,7 +245,7 @@ onMounted(async () => {
   color: var(--psy-tan);
 }
 
-.footer-user-meta { line-height: 1.3; }
+.footer-user-meta { line-height: 1.3; flex: 1; min-width: 0; }
 
 .footer-user-name {
   font-size: 13px;
@@ -249,6 +272,37 @@ onMounted(async () => {
 }
 
 .footer-theme:hover { color: var(--psy-text); }
+
+/* sign_in / sign_up — signal-outlined, shown only while anonymous */
+.footer-auth {
+  background: transparent;
+  border: 1px solid var(--psy-signal);
+  color: var(--psy-signal);
+  padding: 9px 12px;
+  font-family: var(--psy-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  border-radius: 2px;
+  text-align: left;
+}
+
+.footer-auth:hover { background: var(--psy-signal-wash); }
+
+.footer-signout {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid var(--psy-line-strong);
+  border-radius: 2px;
+  color: var(--psy-text-muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.footer-signout:hover { color: var(--psy-text); border-color: var(--psy-text-faint); }
 
 /* ── Main ───────────────────────────────────────────────────────────────── */
 .app-main {

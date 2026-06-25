@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { toAuthUser, type AuthUser } from '~/composables/useAuth'
 
 /**
  * Lazy Supabase provider.
@@ -16,6 +17,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 export default defineNuxtPlugin((nuxtApp) => {
   const config = useRuntimeConfig()
   const handle = useState<string>('userHandle', () => '')
+  const authUser = useState<AuthUser | null>('authUser', () => null)
 
   let clientPromise: Promise<SupabaseClient> | null = null
 
@@ -33,9 +35,15 @@ export default defineNuxtPlugin((nuxtApp) => {
       auth: { persistSession: true, autoRefreshToken: true, storageKey: 'psy_kick_auth' },
     })
 
-    // Ensure a profile row exists after sign-in (idempotent), and surface the handle.
+    // Keep the global auth state (footer + access_terminal dialog) in sync with
+    // every transition — sign-in, sign-out, OAuth redirect return, token refresh,
+    // and the USER_UPDATED that lands when an email upgrade is confirmed.
     supabase.auth.onAuthStateChange(async (event, session) => {
-      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
+      authUser.value = toAuthUser(session?.user)
+      if (!session) handle.value = ''
+
+      // Ensure a profile row exists after sign-in (idempotent), and surface the handle.
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') && session) {
         try {
           const data = await ($fetch as any)('/api/profile/ensure', {
             method: 'POST',
