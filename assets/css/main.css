@@ -3,6 +3,13 @@
    Declassified-document terminal · ink / paper / manila / signal
    ============================================================================= */
 
+/* Tailwind v4 engine + Nuxt UI component styles. Without these two imports the
+   --ui-* tokens below are dead and every Nuxt UI component (UModal, UButton,
+   UInput…) renders unstyled — e.g. modals mount as an invisible block clipped
+   by body{overflow:hidden}. Must come first so the tokens in :root override. */
+@import "tailwindcss";
+@import "@nuxt/ui";
+
 :root {
   /* ---- type ------------------------------------------------------------- */
   --psy-font-sans: "Lato", ui-sans-serif, system-ui, sans-serif;
@@ -123,7 +130,7 @@
   --ui-text:             #ECE4D2;
   --ui-text-muted:       #B8AE99;
   --ui-text-toned:       #CFC4AE;
-  --ui-text-dimmed:      #645C4F;
+  --ui-text-dimmed:      #766D5E;
   --ui-text-highlighted: #FFFFFF;
   --ui-primary:          var(--ui-color-primary-400);
   --ui-secondary:        var(--psy-signal-500);

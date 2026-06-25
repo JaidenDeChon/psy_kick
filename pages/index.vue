@@ -5,8 +5,8 @@
     <h1 class="hero-wordmark">psy_kick<span class="blink-underscore">_</span></h1>
 
     <p class="hero-lede">
-      <strong>Ready when you are.</strong> Once we begin, the server selects a target image.
-      You won't see it — that's the point — until you're done.
+      <strong>Ready when you are.</strong> When you start, we'll pick a target image for you to remote view.
+      Once you're finished, we'll reveal the image for you to score.
     </p>
 
     <div class="hero-actions">

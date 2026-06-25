@@ -1,11 +1,11 @@
 <template>
   <section class="protocol-screen">
-    <div class="screen-eyebrow">// new_session · choose_protocol</div>
+    <div class="screen-eyebrow">// new_session</div>
     <h1 class="screen-title">Choose a protocol.</h1>
     <p class="screen-lede">
-      Each protocol is a different discipline for the same blind premise. v1 ships
-      <span class="tan">Controlled Remote Viewing</span> — the structured, stage-driven method.
-      The others are on the bench.
+      Each protocol is a different discipline of remote viewing practice. This app is early in
+      development and only offers <span class="tan">Controlled Remote Viewing</span> (CRV), but
+      other methodologies are planned for the future.
     </p>
 
     <!-- Resume banner — only when an in-progress session exists -->
@@ -14,7 +14,12 @@
         <span class="resume-label">active_session</span>
         <span class="resume-ref">{{ activeSession.reference_number }}</span>
       </div>
-      <button class="resume-button" @click="router.push(resumeUrl)">resume_session →</button>
+      <div class="resume-actions">
+        <button class="cancel-button" :disabled="cancelling" @click="cancelSession">
+          {{ cancelling ? 'cancelling…' : 'cancel_session' }}
+        </button>
+        <button class="resume-button" @click="router.push(resumeUrl)">resume_session →</button>
+      </div>
     </div>
 
     <!-- Protocol cards -->
@@ -27,8 +32,9 @@
         </div>
         <div class="card-name">controlled<br>remote viewing</div>
         <p class="card-desc">
-          Stages 1–3 of structured perception, AOL set aside, lock, reveal, then
-          decoy-ranked scoring. The full honest loop.
+          Relax yourself with some deep breaths, and then tune your awareness into the secret
+          image. Write down or draw any visuals, textures, and other motifs you pick up on. When
+          finished, you will score your own result.
         </p>
         <div class="card-meta">7-stage blind loop · ~8 min</div>
         <button class="card-begin" :disabled="loading" @click="beginCRV">
@@ -72,12 +78,11 @@
     <div class="loop-section">
       <div class="loop-header">
         <div class="loop-label">// what_to_expect</div>
-        <span class="loop-note">⚡ = motion does real work</span>
       </div>
       <div class="loop-track">
         <div v-for="stage in loopStages" :key="stage.n" class="loop-card">
           <div class="loop-num" :class="`loop-num--${stage.tone}`">
-            {{ stage.n }}<span v-if="stage.motion"> ⚡</span>
+            {{ stage.n }}
           </div>
           <div class="loop-name">{{ stage.label }}</div>
           <div class="loop-desc">{{ stage.desc }}</div>
@@ -92,17 +97,18 @@ const router = useRouter()
 const { apiFetch } = useApi()
 
 const loading = ref(false)
+const cancelling = ref(false)
 const errorMsg = ref('')
 const activeSession = ref<{ id: string; status: string; reference_number: string } | null>(null)
 
 const loopStages = [
-  { n: '01', label: 'ready',   desc: 'calm entry · server picks a secret target', tone: 'faint',  motion: false },
-  { n: '02', label: 'prepare', desc: 'calm down · prepare to view',                tone: 'signal', motion: true },
-  { n: '03', label: 'capture', desc: 'record impressions, set guesses aside',      tone: 'faint',  motion: false },
-  { n: '04', label: 'lock',    desc: 'lock in your notes, drawings',               tone: 'locked', motion: false },
-  { n: '05', label: 'reveal',  desc: 'the payoff · image settles',                 tone: 'signal', motion: true },
-  { n: '06', label: 'judge',   desc: 'rank vs 3 decoys',                           tone: 'faint',  motion: false },
-  { n: '07', label: 'result',  desc: 'score · saved to history',                   tone: 'faint',  motion: false },
+  { n: '01', label: 'ready',   desc: 'calm entry · server picks a secret target', tone: 'faint'  },
+  { n: '02', label: 'prepare', desc: 'calm down · prepare to view',                tone: 'signal' },
+  { n: '03', label: 'capture', desc: 'record impressions, set guesses aside',      tone: 'faint'  },
+  { n: '04', label: 'lock',    desc: 'lock in your notes, drawings',               tone: 'locked' },
+  { n: '05', label: 'reveal',  desc: 'the payoff · image settles',                 tone: 'signal' },
+  { n: '06', label: 'judge',   desc: 'rank vs 3 decoys',                           tone: 'faint'  },
+  { n: '07', label: 'result',  desc: 'score · saved to history',                   tone: 'faint'  },
 ]
 
 const resumeUrl = computed(() => {
@@ -141,6 +147,23 @@ async function beginCRV() {
   }
   finally {
     loading.value = false
+  }
+}
+
+async function cancelSession() {
+  if (!activeSession.value || cancelling.value) return
+  cancelling.value = true
+  errorMsg.value = ''
+  try {
+    await apiFetch(`/api/session/${activeSession.value.id}/cancel`, { method: 'POST' })
+    activeSession.value = null
+  }
+  catch (e: unknown) {
+    errorMsg.value = (e as { data?: { message?: string } }).data?.message
+      ?? 'Failed to cancel session.'
+  }
+  finally {
+    cancelling.value = false
   }
 }
 </script>
@@ -214,6 +237,13 @@ async function beginCRV() {
   color: var(--psy-signal);
 }
 
+.resume-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .resume-button {
   background: var(--psy-signal);
   color: #fff;
@@ -224,6 +254,28 @@ async function beginCRV() {
   font-weight: 700;
   cursor: pointer;
   border-radius: 2px;
+}
+
+.cancel-button {
+  background: transparent;
+  color: var(--psy-text-faint);
+  border: 1px solid var(--psy-line-strong);
+  padding: 12px 18px;
+  font-family: var(--psy-font-mono);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.cancel-button:hover:not(:disabled) {
+  color: var(--psy-locked);
+  border-color: var(--psy-locked);
+}
+
+.cancel-button:disabled {
+  opacity: 0.6;
+  cursor: progress;
 }
 
 /* ── Protocol cards ─────────────────────────────────────────────────────── */
@@ -364,13 +416,6 @@ async function beginCRV() {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--psy-text-faint);
-}
-
-.loop-note {
-  font-family: var(--psy-font-mono);
-  font-size: 10px;
-  color: var(--psy-text-faint);
-  white-space: nowrap;
 }
 
 .loop-track {

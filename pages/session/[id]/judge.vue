@@ -149,7 +149,7 @@ async function submitRanking() {
       method: 'POST',
       body: { ranking: ranks.value },
     })
-    router.push(`/session/${sessionId}/result`)
+    router.push(`/session/${sessionId}/result?finished=1`)
   }
   catch (e: unknown) {
     rankError.value = (e as { data?: { message?: string } }).data?.message ?? 'Submission failed'

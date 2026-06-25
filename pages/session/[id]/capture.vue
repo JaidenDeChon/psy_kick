@@ -120,6 +120,16 @@
     <div class="lock-row">
       <UButton
         size="lg"
+        variant="ghost"
+        color="neutral"
+        :disabled="cancelling"
+        style="font-family: var(--psy-font-mono); letter-spacing: 0.06em"
+        @click="showCancelModal = true"
+      >
+        ✕ cancel_session
+      </UButton>
+      <UButton
+        size="lg"
         class="lock-btn"
         style="font-family: var(--psy-font-mono); letter-spacing: 0.06em"
         @click="showLockModal = true"
@@ -129,7 +139,7 @@
     </div>
 
     <!-- Lock confirm modal -->
-    <UModal v-model:open="showLockModal" :prevent-close="locking">
+    <UModal v-model:open="showLockModal" :dismissible="!locking">
       <template #header>
         <div>
           <p class="label-mono" style="color: var(--psy-locked-fg, #E0795F); font-size: 10px; letter-spacing: 0.12em">⚠ irreversible</p>
@@ -168,6 +178,38 @@
       </template>
     </UModal>
 
+    <!-- Cancel confirm modal -->
+    <UModal v-model:open="showCancelModal" :dismissible="!cancelling">
+      <template #header>
+        <div>
+          <p class="label-mono" style="color: var(--psy-locked-fg, #E0795F); font-size: 10px; letter-spacing: 0.12em">⚠ discards_session</p>
+          <h2 style="font-size: 20px; font-weight: 700; margin-top: 4px; color: var(--psy-text)">Cancel this session?</h2>
+        </div>
+      </template>
+
+      <template #body>
+        <p style="font-size: 14px; color: var(--psy-text-muted)">
+          This session and everything captured so far will be permanently discarded. The target is never revealed.
+        </p>
+      </template>
+
+      <template #footer>
+        <div class="modal-footer-btns">
+          <UButton variant="ghost" :disabled="cancelling" @click="showCancelModal = false">
+            keep_going
+          </UButton>
+          <UButton
+            :loading="cancelling"
+            color="error"
+            style="font-family: var(--psy-font-mono); letter-spacing: 0.05em"
+            @click="cancelSession"
+          >
+            ✕ discard
+          </UButton>
+        </div>
+      </template>
+    </UModal>
+
     <!-- Save indicator -->
     <div v-if="saving" class="save-indicator label-mono">saving_</div>
   </div>
@@ -183,7 +225,9 @@ const { apiFetch } = useApi()
 const sessionId = route.params.id as string
 const referenceNumber = ref('')
 const showLockModal = ref(false)
+const showCancelModal = ref(false)
 const locking = ref(false)
+const cancelling = ref(false)
 const saving = ref(false)
 const currentStage = ref(0)
 const stages = ['gestalt', 'sensory', 'form']
@@ -292,6 +336,24 @@ async function lockAndReveal() {
   finally {
     locking.value = false
     showLockModal.value = false
+  }
+}
+
+// ── Cancel + discard ────────────────────────────────────────────────────────────
+async function cancelSession() {
+  cancelling.value = true
+  try {
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
+    await apiFetch(`/api/session/${sessionId}/cancel`, { method: 'POST' })
+    await router.push('/sessions')
+  }
+  catch (e: unknown) {
+    const msg = (e as { data?: { message?: string } }).data?.message ?? 'Cancel failed'
+    alert(msg)
+  }
+  finally {
+    cancelling.value = false
+    showCancelModal.value = false
   }
 }
 
@@ -470,7 +532,9 @@ onMounted(async () => {
 
 .lock-row {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   margin-top: 24px;
 }
 

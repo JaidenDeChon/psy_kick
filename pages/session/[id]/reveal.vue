@@ -2,7 +2,7 @@
   <div class="reveal-screen">
     <!-- Pre-reveal state: reference number flares -->
     <Transition name="ref-exit" @after-leave="showImage = true">
-      <div v-if="!revealing" class="ref-phase">
+      <div v-if="revealing" class="ref-phase">
         <p class="label-mono" style="color: var(--psy-text-faint); margin-bottom: 12px">signal_resolves</p>
         <div
           class="ref-token ref-flare psy-glow-text"

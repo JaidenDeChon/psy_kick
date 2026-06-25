@@ -12,12 +12,15 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:status": "supabase status",
-    "seed": "bun run scripts/seed-targets.ts"
+    "seed": "bun run scripts/seed-targets.ts",
+    "seed:upload": "bun run scripts/upload-seed.ts"
   },
   "dependencies": {
     "@nuxt/fonts": "^0.14.0",
     "@nuxt/ui": "^4.9.0",
     "@supabase/supabase-js": "^2.49.0",
+    "@types/bun": "^1.3.14",
+    "jpeg-js": "^0.4.4",
     "nuxt": "^4.4.8"
   },
   "devDependencies": {

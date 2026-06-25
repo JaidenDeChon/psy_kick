@@ -51,7 +51,7 @@
       </div>
 
       <!-- Running stats -->
-      <div class="stats-section psy-panel">
+      <div class="stats-section">
         <div class="stats-header">
           <p class="label-mono" style="color: var(--psy-text-muted)">running_stats · vs_chance</p>
           <UButton
@@ -108,12 +108,23 @@
 
       <div class="actions-row">
         <UButton
+          v-if="justFinished"
           size="lg"
           variant="outline"
           style="font-family: var(--psy-font-mono); letter-spacing: 0.06em"
-          @click="saveAndGoHistory"
+          @click="finish"
         >
-          save_to_history →
+          finish →
+        </UButton>
+        <UButton
+          v-else
+          size="lg"
+          variant="ghost"
+          color="neutral"
+          style="font-family: var(--psy-font-mono); letter-spacing: 0.06em"
+          @click="goHistory"
+        >
+          ← back to history
         </UButton>
       </div>
     </template>
@@ -149,6 +160,10 @@ const result = ref<ResultData | null>(null)
 const loading = ref(true)
 const showInfo = ref(false)
 
+// The judge step appends ?finished=1, so a freshly-completed session shows
+// "finish"; arriving from history (or resuming) shows "back to history".
+const justFinished = computed(() => route.query.finished === '1')
+
 const hitRateColor = computed(() => {
   if (!result.value) return 'var(--psy-text)'
   const r = result.value.running_stats.hitRate
@@ -157,8 +172,12 @@ const hitRateColor = computed(() => {
   return 'var(--psy-text)'
 })
 
-function saveAndGoHistory() {
+function goHistory() {
   router.push('/history')
+}
+
+function finish() {
+  router.push('/')
 }
 
 onMounted(async () => {
@@ -215,15 +234,16 @@ onMounted(async () => {
 }
 
 .comparison-panel {
-  border: 1px solid var(--psy-line);
   border-radius: var(--psy-radius-lg);
   overflow: hidden;
   background: var(--psy-bg-inset);
   flex: 1;
 }
 
+/* Sketch panel inherits no border — SketchCanvas's own wrap supplies it.
+   The target panel has a plain <img> child, so it keeps its own frame. */
 .target-panel {
-  border-color: var(--psy-signal);
+  border: 1px solid var(--psy-signal);
 }
 
 .target-img {
@@ -233,10 +253,14 @@ onMounted(async () => {
   display: block;
 }
 
+/* Match the flat bg-base + 1px line cards on /sessions and /history. */
 .stats-section {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  background: var(--psy-bg-base);
+  border: 1px solid var(--psy-line);
+  padding: 20px 24px;
 }
 
 .stats-header {

@@ -24,3 +24,9 @@ bun.lockb
 
 # Local-only design references / handoff (not part of the app)
 resources for claude/
+
+# Seed image assets — large binaries live in a private Supabase bucket, not git.
+# The manifests (targets.csv = upload list, provenance.csv = attribution) stay tracked.
+seed/images/
+seed/candidates/
+seed/.cache/

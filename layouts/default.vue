@@ -16,7 +16,7 @@
     <aside class="psy-sidebar">
       <div class="sidebar-brand">
         <NuxtLink to="/" class="sidebar-logo">psy_kick<span class="blink-underscore">_</span></NuxtLink>
-        <div class="sidebar-eyebrow">controlled_remote_viewing</div>
+        <div class="sidebar-eyebrow">remote_viewing_practice</div>
       </div>
 
       <nav class="sidebar-nav">
