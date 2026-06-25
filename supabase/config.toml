@@ -149,15 +149,17 @@ max_indexes = 5
 
 [auth]
 enabled = true
-# The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
-# in emails.
-site_url = "http://127.0.0.1:3000"
+# The base URL of your website, used as the default for email links. The app always
+# passes an explicit emailRedirectTo (current origin), so this only acts as a fallback —
+# keeping it at the production URL is correct for the deployed site and harmless locally
+# (local email links still resolve to localhost via emailRedirectTo + the allow-list below).
+site_url = "https://psy-kick.netlify.app"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-# Wildcards cover the local dev auth callback / confirm / reset routes.
+# Wildcards cover production + local dev auth callback / confirm / reset routes.
 additional_redirect_urls = [
-  "https://127.0.0.1:3000",
-  "http://127.0.0.1:3000/**",
+  "https://psy-kick.netlify.app/**",
   "http://localhost:3000/**",
+  "http://127.0.0.1:3000/**",
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
