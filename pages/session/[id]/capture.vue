@@ -150,7 +150,7 @@
       <template #body>
         <div style="padding: 4px 0; display: flex; flex-direction: column; gap: 14px">
           <p style="font-size: 14px; color: var(--psy-text-muted)">
-            All drawings and notes become permanently read-only. The target image will be revealed.
+            All drawings and notes become permanently read-only. You'll rank the candidates, then the target image is revealed.
           </p>
           <div class="psy-panel" style="padding: 12px">
             <p class="ref-token" style="font-size: 16px; color: var(--psy-signal)">{{ referenceNumber }}</p>
@@ -170,9 +170,9 @@
             :loading="locking"
             color="error"
             style="font-family: var(--psy-font-mono); letter-spacing: 0.05em"
-            @click="lockAndReveal"
+            @click="lockAndJudge"
           >
-            ▩ lock &amp; reveal
+            ▩ lock &amp; judge
           </UButton>
         </div>
       </template>
@@ -318,8 +318,8 @@ async function save() {
 // Watch sketches for autosave
 watch([() => form.sketch, () => form.ideogram], scheduleSave, { deep: true })
 
-// ── Lock + reveal ──────────────────────────────────────────────────────────────
-async function lockAndReveal() {
+// ── Lock + judge ─────────────────────────────────────────────────────────────
+async function lockAndJudge() {
   locking.value = true
   try {
     // Final save first
@@ -327,7 +327,7 @@ async function lockAndReveal() {
     await save()
 
     await apiFetch(`/api/session/${sessionId}/lock`, { method: 'POST' })
-    await router.push(`/session/${sessionId}/reveal`)
+    await router.push(`/session/${sessionId}/judge`)
   }
   catch (e: unknown) {
     const msg = (e as { data?: { message?: string } }).data?.message ?? 'Lock failed'
@@ -385,9 +385,9 @@ onMounted(async () => {
     referenceNumber.value = data.reference_number
 
     // Redirect if session has moved on
-    if (data.status === 'judged') { router.replace(`/session/${sessionId}/result`); return }
-    if (data.status === 'revealed') { router.replace(`/session/${sessionId}/judge`); return }
-    if (data.status === 'locked') { router.replace(`/session/${sessionId}/reveal`); return }
+    if (data.status === 'revealed') { router.replace(`/session/${sessionId}/result`); return }
+    if (data.status === 'judged') { router.replace(`/session/${sessionId}/reveal`); return }
+    if (data.status === 'locked') { router.replace(`/session/${sessionId}/judge`); return }
 
     // Restore saved state
     form.gestalt_tags = data.perceptions.gestalt_tags ?? []

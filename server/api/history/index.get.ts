@@ -6,12 +6,13 @@ export default defineEventHandler(async (event) => {
   const { user } = await getServerUser(event)
   const db = useServiceRoleClient()
 
-  // Get all judged sessions with judgement results
+  // Get all completed sessions with judgement results. A session is complete
+  // once it has been revealed — the final step after judging.
   const { data: sessions } = await db
     .from('sessions')
     .select('id, reference_number, created_at, status, target_id')
     .eq('user_id', user.id)
-    .eq('status', 'judged')
+    .eq('status', 'revealed')
     .order('created_at', { ascending: false })
 
   if (!sessions) return { sessions: [] }

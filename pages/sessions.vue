@@ -106,17 +106,17 @@ const loopStages = [
   { n: '02', label: 'prepare', desc: 'calm down · prepare to view',                tone: 'signal' },
   { n: '03', label: 'capture', desc: 'record impressions, set guesses aside',      tone: 'faint'  },
   { n: '04', label: 'lock',    desc: 'lock in your notes, drawings',               tone: 'locked' },
-  { n: '05', label: 'reveal',  desc: 'the payoff · image settles',                 tone: 'signal' },
-  { n: '06', label: 'judge',   desc: 'rank vs 3 decoys',                           tone: 'faint'  },
+  { n: '05', label: 'judge',   desc: 'rank vs 3 decoys',                           tone: 'faint'  },
+  { n: '06', label: 'reveal',  desc: 'the payoff · image settles',                 tone: 'signal' },
   { n: '07', label: 'result',  desc: 'score · saved to history',                   tone: 'faint'  },
 ]
 
 const resumeUrl = computed(() => {
   if (!activeSession.value) return '/sessions'
   const { id, status } = activeSession.value
-  if (status === 'judged') return `/session/${id}/result`
-  if (status === 'revealed') return `/session/${id}/judge`
-  if (status === 'locked') return `/session/${id}/reveal`
+  if (status === 'revealed') return `/session/${id}/result`
+  if (status === 'judged') return `/session/${id}/reveal`
+  if (status === 'locked') return `/session/${id}/judge`
   return `/session/${id}/cool-down`
 })
 

@@ -149,7 +149,7 @@ async function submitRanking() {
       method: 'POST',
       body: { ranking: ranks.value },
     })
-    router.push(`/session/${sessionId}/result?finished=1`)
+    router.push(`/session/${sessionId}/reveal`)
   }
   catch (e: unknown) {
     rankError.value = (e as { data?: { message?: string } }).data?.message ?? 'Submission failed'
@@ -173,8 +173,9 @@ onMounted(async () => {
       }
     }>(`/api/session/${sessionId}`)
 
-    if (session.status === 'judged') { router.replace(`/session/${sessionId}/result`); return }
-    if (!['revealed', 'locked'].includes(session.status)) { router.replace('/'); return }
+    if (session.status === 'revealed') { router.replace(`/session/${sessionId}/result`); return }
+    if (session.status === 'judged') { router.replace(`/session/${sessionId}/reveal`); return }
+    if (session.status !== 'locked') { router.replace('/'); return }
 
     sketch.value = session.perceptions.sketch ?? []
     gestaltTags.value = session.perceptions.gestalt_tags ?? []

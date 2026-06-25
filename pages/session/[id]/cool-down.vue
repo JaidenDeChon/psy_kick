@@ -41,9 +41,9 @@ onMounted(async () => {
   try {
     const data = await apiFetch<{ reference_number: string; status: string }>(`/api/session/${sessionId}`)
     referenceNumber.value = data.reference_number
-    if (data.status === 'judged') router.replace(`/session/${sessionId}/result`)
-    else if (data.status === 'revealed') router.replace(`/session/${sessionId}/judge`)
-    else if (data.status === 'locked') router.replace(`/session/${sessionId}/reveal`)
+    if (data.status === 'revealed') router.replace(`/session/${sessionId}/result`)
+    else if (data.status === 'judged') router.replace(`/session/${sessionId}/reveal`)
+    else if (data.status === 'locked') router.replace(`/session/${sessionId}/judge`)
   }
   catch {
     router.replace('/')

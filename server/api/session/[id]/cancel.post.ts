@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
   if (!session) {
     throw createError({ statusCode: 404, message: 'Session not found' })
   }
-  if (session.status === 'judged') {
+  if (session.status === 'revealed') {
     // A completed, scored session lives in history — not cancellable.
     throw createError({ statusCode: 409, message: 'Session is already complete and cannot be cancelled.' })
   }

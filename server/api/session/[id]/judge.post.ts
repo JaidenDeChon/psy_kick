@@ -8,13 +8,13 @@ export default defineEventHandler(async (event) => {
 
   const { data: session } = await db
     .from('sessions')
-    .select('id, user_id, target_id, revealed_at, judged_at')
+    .select('id, user_id, target_id, locked_at, judged_at')
     .eq('id', sessionId)
     .eq('user_id', user.id)
     .single()
 
   if (!session) throw createError({ statusCode: 404, message: 'Session not found' })
-  if (!session.revealed_at) throw createError({ statusCode: 403, message: 'Session must be revealed before judging' })
+  if (!session.locked_at) throw createError({ statusCode: 403, message: 'Session must be locked before judging' })
   if (session.judged_at) throw createError({ statusCode: 409, message: 'Session already judged' })
 
   const body = await readBody(event)

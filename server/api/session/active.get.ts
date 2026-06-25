@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
     .from('sessions')
     .select('id, status, reference_number')
     .eq('user_id', user.id)
-    .neq('status', 'judged')
+    .neq('status', 'revealed')
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()

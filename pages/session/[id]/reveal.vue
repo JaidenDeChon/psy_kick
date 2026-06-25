@@ -31,9 +31,9 @@
           <UButton
             size="lg"
             style="font-family: var(--psy-font-mono); letter-spacing: 0.06em"
-            @click="goJudge"
+            @click="goResult"
           >
-            judge_session →
+            view_score →
           </UButton>
         </div>
       </div>
@@ -85,8 +85,8 @@ async function doReveal() {
   }
 }
 
-function goJudge() {
-  router.push(`/session/${sessionId}/judge`)
+function goResult() {
+  router.push(`/session/${sessionId}/result?finished=1`)
 }
 
 onMounted(async () => {
@@ -94,8 +94,8 @@ onMounted(async () => {
   try {
     const data = await apiFetch<{ reference_number: string; status: string }>(`/api/session/${sessionId}`)
     referenceNumber.value = data.reference_number
-    if (data.status === 'judged') { router.replace(`/session/${sessionId}/result`); return }
-    if (!['locked', 'revealed'].includes(data.status)) { router.replace('/'); return }
+    if (data.status === 'locked') { router.replace(`/session/${sessionId}/judge`); return }
+    if (!['judged', 'revealed'].includes(data.status)) { router.replace('/'); return }
   }
   catch { /* will fail gracefully below */ }
 
