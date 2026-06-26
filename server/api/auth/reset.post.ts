@@ -28,9 +28,15 @@ export default defineEventHandler(async (event) => {
     const anon = createClient(config.public.supabaseUrl, config.public.supabaseAnonKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     })
-    await anon.auth.resetPasswordForEmail(email, {
+    const { error } = await anon.auth.resetPasswordForEmail(email, {
       redirectTo: typeof redirectTo === 'string' ? redirectTo : undefined,
     })
+    // Stay enumeration-safe to the client (always { ok: true }), but don't fly
+    // blind: a swallowed error here is why a rate-limit (429) or SMTP failure
+    // looks like "reset link on its way" while nothing is sent. Log it instead.
+    if (error) {
+      console.error('[auth/reset] resetPasswordForEmail failed:', error.status, error.message)
+    }
   }
 
   return { ok: true }
