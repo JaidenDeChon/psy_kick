@@ -256,3 +256,16 @@ body {
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--psy-line); border-radius: 2px; }
+
+/* iOS Safari auto-zooms when a focused field's computed font-size is < 16px.
+   On touch devices, force form controls to 16px so focusing never triggers a
+   zoom. Desktop keeps the compact 14px design, and pinch-to-zoom stays enabled
+   (unlike a viewport maximum-scale lockdown). !important is needed to beat the
+   scoped .input rules and Nuxt UI's utility-class font sizes. */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}

@@ -118,6 +118,12 @@ const strokes = ref<Stroke[]>([...props.modelValue])
 let currentStroke: Stroke | null = null
 let lastPointerDown = false
 
+// Logical (CSS-pixel) canvas size. The 2D context is scaled by dpr in
+// setCanvasSize, so all drawing happens in CSS-pixel space — never feed it the
+// device-pixel canvas.width/height or coordinates get scaled by dpr twice.
+let logicalW = 0
+let logicalH = 0
+
 const wrapStyle = computed(() => ({
   '--sketch-h': props.size === 'small' ? '120px' : '260px',
 }))
@@ -137,8 +143,8 @@ function renderAll() {
   const ctx = getCtx()
   if (!canvas || !ctx) return
 
-  const { width, height } = canvas
-  ctx.clearRect(0, 0, width, height)
+  // Clear in CSS-pixel space (the context is dpr-scaled).
+  ctx.clearRect(0, 0, logicalW, logicalH)
 
   for (const stroke of strokes.value) {
     if (stroke.points.length < 2) continue
@@ -154,10 +160,10 @@ function renderAll() {
     ctx.lineJoin = 'round'
 
     ctx.beginPath()
-    const [fx, fy] = toCanvas(stroke.points[0]![0], stroke.points[0]![1], width, height)
+    const [fx, fy] = toCanvas(stroke.points[0]![0], stroke.points[0]![1], logicalW, logicalH)
     ctx.moveTo(fx, fy)
     for (let i = 1; i < stroke.points.length; i++) {
-      const [px, py] = toCanvas(stroke.points[i]![0], stroke.points[i]![1], width, height)
+      const [px, py] = toCanvas(stroke.points[i]![0], stroke.points[i]![1], logicalW, logicalH)
       ctx.lineTo(px, py)
     }
     ctx.stroke()
@@ -171,11 +177,18 @@ function setCanvasSize() {
   if (!canvas) return
   const rect = canvas.getBoundingClientRect()
   if (rect.width === 0 || rect.height === 0) return
+  logicalW = rect.width
+  logicalH = rect.height
   const dpr = Math.min(window.devicePixelRatio || 1, 2)
   canvas.width = rect.width * dpr
   canvas.height = rect.height * dpr
   const ctx = canvas.getContext('2d')
-  if (ctx) ctx.scale(dpr, dpr)
+  // Reset any prior transform before re-applying the dpr scale (setting
+  // width/height already resets it, but be explicit for resize correctness).
+  if (ctx) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.scale(dpr, dpr)
+  }
   renderAll()
 }
 
@@ -202,20 +215,8 @@ function onMove(e: PointerEvent) {
   if (!drawing.value || !currentStroke || props.locked) return
   e.preventDefault()
 
-  const events = e.getCoalescedEvents?.() ?? [e]
-  for (const ce of events) {
-    currentStroke.points.push(getCanvasCoords(ce))
-  }
-
-  // Draw the in-progress stroke
-  const canvas = canvasEl.value
   const ctx = getCtx()
-  if (!canvas || !ctx) return
-
-  const pts = currentStroke.points
-  if (pts.length < 2) return
-
-  const { width, height } = canvas
+  if (!ctx) return
 
   if (currentStroke.mode === 'erase') {
     ctx.globalCompositeOperation = 'destination-out'
@@ -228,12 +229,22 @@ function onMove(e: PointerEvent) {
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
 
-  const last = pts[pts.length - 2]!
-  const curr = pts[pts.length - 1]!
-  ctx.beginPath()
-  ctx.moveTo(...toCanvas(last[0], last[1], width, height))
-  ctx.lineTo(...toCanvas(curr[0], curr[1], width, height))
-  ctx.stroke()
+  // iOS batches many high-frequency touch samples into one pointermove. Draw a
+  // segment from the previous point through EVERY coalesced point — drawing only
+  // the final segment leaves gaps and the live line looks dotted.
+  const raw = e.getCoalescedEvents?.()
+  const events = raw && raw.length ? raw : [e]
+  const pts = currentStroke.points
+  for (const ce of events) {
+    const prev = pts[pts.length - 1]!
+    const next = getCanvasCoords(ce)
+    pts.push(next)
+    ctx.beginPath()
+    ctx.moveTo(...toCanvas(prev[0], prev[1], logicalW, logicalH))
+    ctx.lineTo(...toCanvas(next[0], next[1], logicalW, logicalH))
+    ctx.stroke()
+  }
+
   ctx.globalCompositeOperation = 'source-over'
 }
 
