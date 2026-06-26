@@ -153,10 +153,14 @@ enabled = true
 # passes an explicit emailRedirectTo (current origin), so this only acts as a fallback —
 # keeping it at the production URL is correct for the deployed site and harmless locally
 # (local email links still resolve to localhost via emailRedirectTo + the allow-list below).
-site_url = "https://psy-kick.netlify.app"
+site_url = "https://psy-kick.me"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-# Wildcards cover production + local dev auth callback / confirm / reset routes.
+# Wildcards cover the custom domain (apex + www), the netlify fallback (deploy previews),
+# and local dev auth callback / confirm / reset routes. A redirectTo NOT matching one of
+# these makes Supabase fall back to site_url — which is why OAuth was landing on netlify.
 additional_redirect_urls = [
+  "https://psy-kick.me/**",
+  "https://www.psy-kick.me/**",
   "https://psy-kick.netlify.app/**",
   "http://localhost:3000/**",
   "http://127.0.0.1:3000/**",

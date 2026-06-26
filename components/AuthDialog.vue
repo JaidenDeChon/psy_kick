@@ -38,6 +38,7 @@
             <label class="micro" for="auth-identity">username</label>
             <input
               id="auth-identity"
+              name="username"
               v-model.trim="identity"
               class="input"
               type="text"
@@ -54,6 +55,7 @@
               <label class="micro" for="auth-username">username</label>
               <input
                 id="auth-username"
+                name="username"
                 v-model.trim="username"
                 class="input"
                 type="text"
@@ -70,6 +72,7 @@
               <label class="micro" for="auth-email">email</label>
               <input
                 id="auth-email"
+                name="email"
                 v-model.trim="email"
                 class="input"
                 type="email"
@@ -88,6 +91,7 @@
             </div>
             <input
               id="auth-password"
+              name="password"
               v-model="password"
               class="input"
               type="password"

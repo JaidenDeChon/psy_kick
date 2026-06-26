@@ -40,6 +40,15 @@ export function useAuth() {
     user.value = toAuthUser(u)
   }
 
+  /** Apply a new username to the footer + cold-load cache (after a profile edit). */
+  function setHandle(next: string) {
+    handle.value = next
+    if (import.meta.client) {
+      try { localStorage.setItem('psy_kick_handle', next) }
+      catch { /* ignore */ }
+    }
+  }
+
   /** Seed footer state on the client without pulling in Supabase (homepage perf). */
   function hydrateFromStorage() {
     if (!import.meta.client || user.value) return
@@ -47,13 +56,18 @@ export function useAuth() {
       const raw = localStorage.getItem('psy_kick_auth')
       if (!raw) return
       const token = JSON.parse(raw)?.access_token as string | undefined
-      if (!token) return
-      const claims = JSON.parse(atob(token.split('.')[1]))
+      const payload = token?.split('.')[1]
+      if (!payload) return
+      const claims = JSON.parse(atob(payload))
       user.value = {
         id: claims.sub,
         email: claims.email ?? null,
         isAnonymous: claims.is_anonymous ?? false,
       }
+      // Restore the cached username so the footer shows it immediately, rather
+      // than flashing the email local-part until the lazy client loads the profile.
+      const cachedHandle = localStorage.getItem('psy_kick_handle')
+      if (cachedHandle) handle.value = cachedHandle
     }
     catch { /* malformed/absent session — stay anonymous */ }
   }
@@ -141,13 +155,14 @@ export function useAuth() {
     const sb = await getClient()
     await sb.auth.signOut()
     handle.value = ''
+    if (import.meta.client) localStorage.removeItem('psy_kick_handle')
     const { data } = await sb.auth.signInAnonymously()
     syncFrom(data.user)
   }
 
   return {
     user, handle, isAnonymous, isPermanent,
-    hydrateFromStorage, syncFrom,
+    hydrateFromStorage, syncFrom, setHandle,
     signUpUsername, signInIdentity, signInGoogle, linkGoogle, resetIdentity, setPassword, signOut,
   }
 }

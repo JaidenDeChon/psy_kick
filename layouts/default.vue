@@ -46,6 +46,12 @@
 
         <ClientOnly>
           <button v-if="isAnonymous" class="footer-auth" @click="authOpen = true">→ sign_in / sign_up</button>
+          <NuxtLink
+            v-else
+            to="/settings"
+            class="footer-profile"
+            :class="{ 'footer-profile--active': route.path === '/settings' }"
+          >⚙ my_profile</NuxtLink>
         </ClientOnly>
 
         <ClientOnly>
@@ -288,6 +294,29 @@ onMounted(async () => {
 }
 
 .footer-auth:hover { background: var(--psy-signal-wash); }
+
+/* my_profile — neutral outline, shown only once signed in */
+.footer-profile {
+  display: block;
+  background: transparent;
+  border: 1px solid var(--psy-line-strong);
+  color: var(--psy-text-muted);
+  padding: 9px 12px;
+  font-family: var(--psy-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  border-radius: 2px;
+  text-align: left;
+  text-decoration: none;
+}
+
+.footer-profile:hover { color: var(--psy-text); border-color: var(--psy-text-faint); }
+
+.footer-profile--active {
+  color: var(--psy-text-highlighted);
+  border-color: var(--psy-tan);
+}
 
 .footer-signout {
   flex-shrink: 0;

@@ -40,7 +40,10 @@ export default defineNuxtPlugin((nuxtApp) => {
     // and the USER_UPDATED that lands when an email upgrade is confirmed.
     supabase.auth.onAuthStateChange(async (event, session) => {
       authUser.value = toAuthUser(session?.user)
-      if (!session) handle.value = ''
+      if (!session) {
+        handle.value = ''
+        try { localStorage.removeItem('psy_kick_handle') } catch { /* ignore */ }
+      }
 
       // Ensure a profile row exists after sign-in (idempotent), and surface the handle.
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') && session) {
@@ -49,7 +52,16 @@ export default defineNuxtPlugin((nuxtApp) => {
             method: 'POST',
             headers: { Authorization: `Bearer ${session.access_token}` },
           })
-          if (data?.handle) handle.value = (data as { handle: string }).handle
+          if (data?.handle) {
+            handle.value = (data as { handle: string }).handle
+            // Cache it so hydrateFromStorage() can restore it on the next cold
+            // load without booting Supabase. Only persist for real accounts —
+            // anonymous handles are throwaway and never shown.
+            try {
+              if (session.user.is_anonymous) localStorage.removeItem('psy_kick_handle')
+              else localStorage.setItem('psy_kick_handle', handle.value)
+            } catch { /* ignore */ }
+          }
         } catch { /* non-fatal */ }
       }
     })
