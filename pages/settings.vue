@@ -39,21 +39,6 @@
             <label class="micro" for="set-email">email · private</label>
             <input id="set-email" class="input" type="email" :value="email" disabled>
           </div>
-
-          <div v-if="hasPassword" class="field">
-            <label class="micro" for="name-current">current_password</label>
-            <input
-              id="name-current"
-              name="current-password"
-              v-model="namePassword"
-              class="input"
-              type="password"
-              autocomplete="current-password"
-              placeholder="••••••••"
-              :disabled="savingName"
-              required
-            >
-          </div>
         </div>
 
         <div class="card-foot">
@@ -154,7 +139,6 @@ const hasPassword = ref(false)
 // identity
 const initialUsername = ref('')
 const username = ref('')
-const namePassword = ref('')
 const savingName = ref(false)
 const nameMsg = ref('')
 const nameOk = ref(false)
@@ -198,11 +182,10 @@ async function saveUsername() {
   try {
     const { handle } = await apiFetch<{ handle: string }>('/api/profile/username', {
       method: 'POST',
-      body: { username: username.value, currentPassword: namePassword.value || undefined },
+      body: { username: username.value },
     })
     setHandle(handle)
     initialUsername.value = handle
-    namePassword.value = ''
     nameOk.value = true
     nameMsg.value = 'username updated'
   }

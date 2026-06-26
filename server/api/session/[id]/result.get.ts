@@ -55,11 +55,13 @@ export default defineEventHandler(async (event) => {
     .eq('session_id', sessionId)
     .single()
 
-  // Compute running stats for this user
+  // Compute running stats for this user — self-judgements only (judgements on the
+  // user's OWN sessions). Crowd votes they cast on others' sessions are excluded.
   const { data: allJudgements } = await db
     .from('judgements')
-    .select('hit, session_id')
+    .select('hit, sessions!inner(user_id)')
     .eq('judger_id', user.id)
+    .eq('sessions.user_id', user.id)
 
   const n = allJudgements?.length ?? 0
   const hits = allJudgements?.filter((j) => j.hit).length ?? 0

@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   // once it has been revealed — the final step after judging.
   const { data: sessions } = await db
     .from('sessions')
-    .select('id, reference_number, created_at, status, target_id')
+    .select('id, reference_number, created_at, status, target_id, allow_public_scoring')
     .eq('user_id', user.id)
     .eq('status', 'revealed')
     .order('created_at', { ascending: false })
@@ -57,15 +57,34 @@ export default defineEventHandler(async (event) => {
 
   const targetById = Object.fromEntries((targets ?? []).map((t) => [t.id, t]))
 
+  // Crowd score per session — the aggregate of OTHER viewers' blind judgements.
+  // Renders as "--" (pending) until quorum (n ≥ 5); the view already excludes the
+  // owner's own self-judgement from the crowd count.
+  const { data: crowd } = await db
+    .from('session_crowd_stats')
+    .select('session_id, n_judgments, n_hits, hit_rate, quorum_met')
+    .in('session_id', sessionIds)
+  const crowdBySession = Object.fromEntries((crowd ?? []).map((c) => [c.session_id, c]))
+
   return {
-    sessions: sessions.map((s) => ({
-      id: s.id,
-      reference_number: s.reference_number,
-      created_at: s.created_at,
-      hit: hitBySession[s.id] ?? false,
-      target_rank: rankBySession[s.id] ?? null,
-      category: targetById[s.target_id]?.category ?? null,
-      thumbnail_url: thumbnailUrls[s.target_id] ?? null,
-    })),
+    sessions: sessions.map((s) => {
+      const c = crowdBySession[s.id]
+      return {
+        id: s.id,
+        reference_number: s.reference_number,
+        created_at: s.created_at,
+        hit: hitBySession[s.id] ?? false,
+        target_rank: rankBySession[s.id] ?? null,
+        category: targetById[s.target_id]?.category ?? null,
+        thumbnail_url: thumbnailUrls[s.target_id] ?? null,
+        allow_public_scoring: s.allow_public_scoring ?? true,
+        crowd: {
+          n: c?.n_judgments ?? 0,
+          hits: c?.n_hits ?? 0,
+          hit_rate: c?.hit_rate != null ? Number(c.hit_rate) : null,
+          quorum_met: c?.quorum_met ?? false,
+        },
+      }
+    }),
   }
 })

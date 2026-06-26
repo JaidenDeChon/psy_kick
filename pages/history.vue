@@ -45,10 +45,15 @@
 
       <!-- List header -->
       <div class="list-header">
-        <span>sketch</span>
+        <span class="col-sketch">sketch</span>
         <span>target_reference</span>
         <span class="col-impressions">impressions</span>
-        <span class="col-result">result</span>
+        <span class="col-self">self</span>
+        <span class="col-crowd">
+          crowd · vs 25%
+          <button class="score-info" type="button" aria-label="what self and crowd mean" @click="showScoreInfo = true">ⓘ</button>
+        </span>
+        <span class="col-pool">pool</span>
       </div>
 
       <!-- Rows -->
@@ -66,13 +71,35 @@
           <div class="row-date">{{ formatDate(s.created_at) }}</div>
         </div>
         <div class="row-impressions col-impressions">{{ s.category || '—' }}</div>
-        <div class="col-result">
+        <div class="col-self">
           <span class="result-chip" :class="s.hit ? 'result-chip--hit' : 'result-chip--miss'">
             {{ s.hit ? 'HIT' : 'miss' }} · #{{ s.target_rank ?? '—' }}
           </span>
         </div>
+        <div class="col-crowd">
+          <template v-if="s.crowd.quorum_met">
+            <span class="crowd-rate">{{ Math.round((s.crowd.hit_rate ?? 0) * 100) }}%</span>
+            <span class="crowd-n">{{ s.crowd.hits }} of {{ s.crowd.n }}</span>
+          </template>
+          <template v-else>
+            <span class="crowd-pending">--</span>
+            <span class="crowd-n">{{ s.crowd.n }}/5 judged</span>
+          </template>
+        </div>
+        <!-- Owner opt-out of the public judging pool (§5.3). Stops navigation so the
+             switch toggles in place rather than opening the session. -->
+        <div class="col-pool" @click.stop.prevent>
+          <USwitch
+            size="sm"
+            :model-value="s.allow_public_scoring"
+            :aria-label="`allow others to score session ${s.reference_number}`"
+            @update:model-value="(val: boolean) => toggleScoring(s, val)"
+          />
+        </div>
       </NuxtLink>
     </template>
+
+    <ScoreInfoDialog v-model="showScoreInfo" />
   </section>
 </template>
 
@@ -87,11 +114,29 @@ interface HistorySession {
   target_rank: number | null
   category: string | null
   thumbnail_url: string | null
+  allow_public_scoring: boolean
+  crowd: { n: number; hits: number; hit_rate: number | null; quorum_met: boolean }
 }
 
 const sessions = ref<HistorySession[]>([])
 const loading = ref(true)
 const filter = ref<'all' | 'hit' | 'miss'>('all')
+const showScoreInfo = ref(false)
+
+/**
+ * Owner opt-out of the public judging pool (§5.3). Optimistic — reverts on error.
+ * Turning it off stops NEW crowd judgements; any existing crowd-score is kept.
+ */
+async function toggleScoring(s: HistorySession, val: boolean) {
+  const prev = s.allow_public_scoring
+  s.allow_public_scoring = val
+  try {
+    await apiFetch(`/api/session/${s.id}/scoring`, { method: 'POST', body: { allow: val } })
+  }
+  catch {
+    s.allow_public_scoring = prev
+  }
+}
 const lastSession = useState<{ reference_number: string; hit: boolean; date: string } | null>('lastSession', () => null)
 
 const hitCount = computed(() => sessions.value.filter(s => s.hit).length)
@@ -234,8 +279,8 @@ onMounted(async () => {
 /* ── List ───────────────────────────────────────────────────────────────── */
 .list-header {
   display: grid;
-  grid-template-columns: 62px 1fr 180px 130px;
-  gap: 18px;
+  grid-template-columns: 56px 1fr 138px 96px 116px 86px;
+  gap: 16px;
   padding: 18px 4px 12px;
   margin-top: 14px;
   border-bottom: 1px solid var(--psy-line);
@@ -246,18 +291,61 @@ onMounted(async () => {
   color: var(--psy-text-faint);
 }
 
-.col-result { text-align: right; }
+.col-self { text-align: right; }
+.col-crowd { text-align: right; }
+.col-pool { text-align: center; }
+
+.score-info {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--psy-font-mono);
+  font-size: 12px;
+  color: var(--psy-text-faint);
+  padding: 0 0 0 4px;
+  vertical-align: baseline;
+}
+.score-info:hover { color: var(--psy-tan); }
 
 .session-row {
   display: grid;
-  grid-template-columns: 62px 1fr 180px 130px;
-  gap: 18px;
+  grid-template-columns: 56px 1fr 138px 96px 116px 86px;
+  gap: 16px;
   align-items: center;
   padding: 16px 4px;
   border-bottom: 1px solid var(--psy-line);
   text-decoration: none;
   color: inherit;
   transition: background 0.12s;
+}
+
+.col-pool {
+  display: flex;
+  justify-content: center;
+}
+
+/* ── Crowd score cell ───────────────────────────────────────────────────── */
+.col-crowd {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.crowd-rate {
+  font-family: var(--psy-font-mono);
+  font-size: 14px;
+  color: var(--psy-tan);
+}
+.crowd-pending {
+  font-family: var(--psy-font-mono);
+  font-size: 14px;
+  color: var(--psy-text-faint);
+}
+.crowd-n {
+  font-family: var(--psy-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--psy-text-faint);
 }
 
 .session-row:hover { background: var(--psy-bg-base); }
@@ -342,14 +430,26 @@ onMounted(async () => {
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
-@media (max-width: 720px) {
+@media (max-width: 760px) {
   .list-header,
   .session-row {
-    grid-template-columns: 50px 1fr auto;
-    gap: 14px;
+    grid-template-columns: 40px minmax(0, 1fr) auto auto auto;
+    gap: 12px;
   }
 
   .col-impressions { display: none; }
+}
+
+@media (max-width: 480px) {
+  .list-header,
+  .session-row {
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    gap: 10px;
+  }
+
+  .col-impressions,
+  .col-sketch,
+  .row-thumb { display: none; }
 }
 
 @media (max-width: 520px) {

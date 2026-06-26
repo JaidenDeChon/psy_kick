@@ -13,6 +13,27 @@ export function accountHasPassword(user: User): boolean {
   return (user.identities ?? []).some(i => i.provider === 'email')
 }
 
+/**
+ * The single gate for all social participation (judging, following, public
+ * listing): a real cloud account (not anonymous) whose email is confirmed. OAuth
+ * (Google) returns a verified email and clears on first sign-in; email/password
+ * waits for the confirmation link. Mirrors the SQL `public.is_cloud_verified`.
+ */
+export function isCloudVerified(user: User): boolean {
+  if (user.is_anonymous) return false
+  return !!user.email_confirmed_at || !!user.confirmed_at
+}
+
+/** Throw 403 unless the user is a cloud + verified account. */
+export function requireCloudVerified(user: User): void {
+  if (!isCloudVerified(user)) {
+    throw createError({
+      statusCode: 403,
+      message: 'A confirmed account is required for this. Sign in and verify your email.',
+    })
+  }
+}
+
 export async function getServerUser(event: H3Event) {
   const authHeader = getHeader(event, 'authorization')
   const token = authHeader?.replace(/^Bearer\s+/i, '')

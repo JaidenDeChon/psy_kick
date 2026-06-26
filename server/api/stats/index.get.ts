@@ -6,10 +6,13 @@ export default defineEventHandler(async (event) => {
   const { user } = await getServerUser(event)
   const db = useServiceRoleClient()
 
+  // Self-judgements only — a judgement on one's OWN session. Crowd judgements this
+  // user cast on other people's sessions must not inflate their personal RV stats.
   const { data: judgements } = await db
     .from('judgements')
-    .select('hit, created_at, session_id')
+    .select('hit, created_at, session_id, sessions!inner(user_id)')
     .eq('judger_id', user.id)
+    .eq('sessions.user_id', user.id)
     .order('created_at', { ascending: true })
 
   const n = judgements?.length ?? 0

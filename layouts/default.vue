@@ -30,6 +30,22 @@
           <span class="sidebar-glyph">{{ link.glyph }}</span>
           <span>{{ link.label }}</span>
         </NuxtLink>
+
+        <div class="sidebar-section">// network</div>
+
+        <NuxtLink
+          v-for="link in networkLinks"
+          :key="link.to"
+          :to="link.to"
+          class="sidebar-link"
+          :class="{ 'sidebar-link--active': isLinkActive(link) }"
+        >
+          <span class="sidebar-glyph">{{ link.glyph }}</span>
+          <span class="sidebar-link-label">{{ link.label }}</span>
+          <ClientOnly>
+            <span v-if="link.badge" class="nav-badge" :class="{ 'nav-badge--empty': reviewQueueCount === 0 }">{{ reviewQueueCount }}</span>
+          </ClientOnly>
+        </NuxtLink>
       </nav>
 
       <div class="sidebar-footer">
@@ -98,10 +114,17 @@ const navLinks = [
   { to: '/stats',    label: 'stats',   glyph: '◴', match: ['/stats'] },
 ]
 
-function isLinkActive(link: (typeof navLinks)[number]) {
+const networkLinks = [
+  { to: '/leaderboard',   label: 'leaderboard',   glyph: '≡', match: ['/leaderboard'] as string[], badge: false },
+  { to: '/review_others', label: 'review_others', glyph: '⊞', match: ['/review_others'], badge: true },
+]
+
+function isLinkActive(link: { exact?: boolean; match: string[] }) {
   if (link.exact) return route.path === '/'
   return link.match.some(p => route.path.startsWith(p))
 }
+
+const reviewQueueCount = useState<number>('reviewQueueCount', () => 0)
 
 // Close the drawer whenever navigation happens.
 watch(() => route.path, () => { mobileOpen.value = false })
@@ -122,12 +145,23 @@ const userSub = computed(() =>
 
 onMounted(async () => {
   hydrateFromStorage()
-  if (route.path === '/' || sidebarN.value !== null) return
-  try {
-    const data = await apiFetch<{ stats: { n: number } }>('/api/stats')
-    sidebarN.value = data.stats.n
+  // The home page is intentionally Supabase-free — don't trigger client init there.
+  if (route.path === '/') return
+
+  if (sidebarN.value === null) {
+    try {
+      const data = await apiFetch<{ stats: { n: number } }>('/api/stats')
+      sidebarN.value = data.stats.n
+    }
+    catch { /* leave the footer at 'unranked' */ }
   }
-  catch { /* leave the footer at 'unranked' */ }
+
+  // Queue count for the review_others nav badge (0 for anonymous / unverified).
+  try {
+    const q = await apiFetch<{ count: number }>('/api/review/queue')
+    reviewQueueCount.value = q.count
+  }
+  catch { /* leave the badge at 0 */ }
 })
 </script>
 
@@ -220,6 +254,40 @@ onMounted(async () => {
   display: inline-block;
   text-align: center;
   flex-shrink: 0;
+}
+
+.sidebar-link-label { flex: 1; }
+
+/* Section divider inside the nav (e.g. "// network") */
+.sidebar-section {
+  font-family: var(--psy-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--psy-text-faint);
+  padding: 18px 12px 8px;
+}
+
+/* Queue badge on review_others */
+.nav-badge {
+  flex-shrink: 0;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--psy-font-mono);
+  font-size: 10px;
+  color: var(--psy-signal);
+  border: 1px solid var(--psy-signal);
+  border-radius: 2px;
+}
+
+/* Nothing waiting → stay quiet; reserve the signal accent for a non-empty queue. */
+.nav-badge--empty {
+  color: var(--psy-text-faint);
+  border-color: var(--psy-line-strong);
 }
 
 .sidebar-footer {
