@@ -13,11 +13,10 @@
 const siteUrl = 'https://psy-kick.me'
 const ogImage = `${siteUrl}/img/social-preview.png`
 
-const title = 'psy_kick'
+const title = 'psy_kick: structured remote viewing practice'
 const description
-  = 'Remote viewing practice with blind sessions and score tracking. When you '
-  + "start, we'll pick a target image for you to remote view — then reveal it "
-  + 'for you to score.'
+  = 'Remote viewing practice with blind sessions and score tracking. We\'ll '
+  + 'pick a secret target image, you remote-view it, and then see how you scored.'
 
 useSeoMeta({
   title,
