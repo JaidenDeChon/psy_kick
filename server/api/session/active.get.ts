@@ -5,14 +5,14 @@ export default defineEventHandler(async (event) => {
   const { user } = await getServerUser(event)
   const db = useServiceRoleClient()
 
-  const { data: session } = await db
+  // Every in-progress session (anything not yet revealed). Multiple may be
+  // active at once — the client surfaces each so none get stranded.
+  const { data: sessions } = await db
     .from('sessions')
-    .select('id, status, reference_number')
+    .select('id, status, reference_number, created_at')
     .eq('user_id', user.id)
     .neq('status', 'revealed')
     .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
 
-  return { session: session ?? null }
+  return { sessions: sessions ?? [] }
 })

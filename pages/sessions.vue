@@ -1,25 +1,37 @@
 <template>
   <section class="protocol-screen">
     <div class="screen-eyebrow">// new_session</div>
-    <h1 class="screen-title">Choose a protocol.</h1>
+    <h1 class="screen-title">Which protocol?</h1>
     <p class="screen-lede">
       Each protocol is a different discipline of remote viewing practice. This app is early in
       development and only offers <span class="tan">Controlled Remote Viewing</span> (CRV), but
       other methodologies are planned for the future.
     </p>
 
-    <!-- Resume banner — only when an in-progress session exists -->
-    <div v-if="activeSession" class="resume-banner">
-      <div class="resume-meta">
-        <span class="resume-label">active_session</span>
-        <span class="resume-ref">{{ activeSession.reference_number }}</span>
+    <!-- Resume list — one banner per in-progress session -->
+    <div v-if="activeSessions.length" class="resume-list">
+      <div class="resume-list-label">
+        active_sessions · {{ activeSessions.length }}
       </div>
-      <div class="resume-actions">
-        <button class="cancel-button" :disabled="cancelling" @click="cancelSession">
-          {{ cancelling ? 'cancelling…' : 'cancel_session' }}
-        </button>
-        <button class="resume-button" @click="router.push(resumeUrl)">resume_session →</button>
+      <div v-for="session in activeSessions" :key="session.id" class="resume-banner">
+        <div class="resume-meta">
+          <span class="resume-label">{{ stageLabel(session.status) }}</span>
+          <span class="resume-ref">{{ session.reference_number }}</span>
+        </div>
+        <div class="resume-actions">
+          <button
+            class="cancel-button"
+            :disabled="cancellingId === session.id"
+            @click="cancelSession(session)"
+          >
+            {{ cancellingId === session.id ? 'cancelling…' : 'cancel_session' }}
+          </button>
+          <button class="resume-button" @click="router.push(resumeUrl(session))">
+            resume_session →
+          </button>
+        </div>
       </div>
+      <p v-if="cancelError" class="card-error">{{ cancelError }}</p>
     </div>
 
     <!-- Protocol cards -->
@@ -37,9 +49,12 @@
           finished, you will score your own result.
         </p>
         <div class="card-meta">7-stage blind loop · ~8 min</div>
-        <button class="card-begin" :disabled="loading" @click="beginCRV">
-          {{ loading ? 'sealing target…' : 'begin viewing subject →' }}
-        </button>
+        <div class="card-actions">
+          <button class="card-begin" :disabled="loading" @click="beginCRV">
+            {{ loading ? 'sealing target…' : 'begin viewing subject →' }}
+          </button>
+          <button class="card-help" @click="showHelp = true">how does this work?</button>
+        </div>
         <p v-if="errorMsg" class="card-error">{{ errorMsg }}</p>
       </div>
 
@@ -73,21 +88,16 @@
       </div>
     </div>
 
-    <!-- The loop -->
-    <div class="loop-section">
-      <div class="loop-header">
-        <div class="loop-label">// what_to_expect</div>
-      </div>
-      <div class="loop-track">
-        <div v-for="stage in loopStages" :key="stage.n" class="loop-card">
-          <div class="loop-num" :class="`loop-num--${stage.tone}`">
-            {{ stage.n }}
-          </div>
-          <div class="loop-name">{{ stage.label }}</div>
-          <div class="loop-desc">{{ stage.desc }}</div>
-        </div>
-      </div>
-    </div>
+    <!-- Protocol explainer — opened from the CRV card's "how does this work?" -->
+    <HowThisWorksDialog v-model:open="showHelp" />
+
+    <!-- Guard — only one session of each type may be active at a time -->
+    <NewSessionDialog
+      v-model:open="showNewSessionWarning"
+      :sessions="activeSessions"
+      @resume="resumeFromWarning"
+      @cancel-restart="cancelAndStartNew"
+    />
   </section>
 </template>
 
@@ -95,42 +105,79 @@
 const router = useRouter()
 const { apiFetch } = useApi()
 
+interface ActiveSession {
+  id: string
+  status: string
+  reference_number: string
+  created_at: string
+}
+
 const loading = ref(false)
-const cancelling = ref(false)
+const cancellingId = ref<string | null>(null)
 const errorMsg = ref('')
-const activeSession = ref<{ id: string; status: string; reference_number: string } | null>(null)
+const cancelError = ref('')
+const showHelp = ref(false)
+const showNewSessionWarning = ref(false)
+const activeSessions = ref<ActiveSession[]>([])
 
-const loopStages = [
-  { n: '01', label: 'ready',   desc: 'server picks a secret target',              tone: 'faint'  },
-  { n: '02', label: 'prepare', desc: 'calm down, prepare to view',                tone: 'signal' },
-  { n: '03', label: 'capture', desc: 'record impressions, set guesses aside',      tone: 'faint'  },
-  { n: '04', label: 'lock',    desc: 'lock in your notes + drawings',              tone: 'locked' },
-  { n: '05', label: 'judge',   desc: 'rank your viewing against the real result + 3 decoys', tone: 'faint' },
-  { n: '06', label: 'reveal',  desc: 'target is revealed',                         tone: 'signal' },
-  { n: '07', label: 'result',  desc: 'score breakdown',                            tone: 'faint'  },
-]
-
-const resumeUrl = computed(() => {
-  if (!activeSession.value) return '/sessions'
-  const { id, status } = activeSession.value
-  if (status === 'revealed') return `/session/${id}/result`
+// Where "resume" lands depends on how far the session has progressed.
+function resumeUrl(session: ActiveSession) {
+  const { id, status } = session
   if (status === 'judged') return `/session/${id}/reveal`
   if (status === 'locked') return `/session/${id}/judge`
   return `/session/${id}/cool-down`
-})
+}
+
+// Human-readable stage shown above each session's reference number.
+function stageLabel(status: string) {
+  if (status === 'judged') return 'ready_to_reveal'
+  if (status === 'locked') return 'ready_to_judge'
+  return 'capturing'
+}
 
 // First API call on arrival → lazily creates the Supabase client.
 onMounted(async () => {
   try {
-    const data = await apiFetch<{
-      session: { id: string; status: string; reference_number: string } | null
-    }>('/api/session/active')
-    if (data.session) activeSession.value = data.session
+    const data = await apiFetch<{ sessions: ActiveSession[] }>('/api/session/active')
+    activeSessions.value = data.sessions ?? []
   }
-  catch { /* non-fatal — just hide the resume banner */ }
+  catch { /* non-fatal — just hide the resume list */ }
 })
 
-async function beginCRV() {
+// CRV "begin" handler — only one session of this type may be active at a time,
+// so if one is already in progress we surface the choice rather than create.
+function beginCRV() {
+  if (activeSessions.value.length > 0) {
+    showNewSessionWarning.value = true
+    return
+  }
+  createSession()
+}
+
+// "cancel & start new": discard the in-progress session, then begin a fresh one.
+async function cancelAndStartNew() {
+  showNewSessionWarning.value = false
+  const existing = activeSessions.value[0]
+  if (existing) {
+    try {
+      await apiFetch(`/api/session/${existing.id}/cancel`, { method: 'POST' })
+    }
+    catch { /* if cancel fails, createSession surfaces the server's rejection */ }
+    activeSessions.value = activeSessions.value.filter((s) => s.id !== existing.id)
+  }
+  createSession()
+}
+
+// "resume" from the warning: one in-progress session → jump straight into it;
+// several → close the dialog and let them choose from the list on the page.
+function resumeFromWarning() {
+  showNewSessionWarning.value = false
+  if (activeSessions.value.length === 1) {
+    router.push(resumeUrl(activeSessions.value[0]!))
+  }
+}
+
+async function createSession() {
   loading.value = true
   errorMsg.value = ''
   try {
@@ -149,20 +196,20 @@ async function beginCRV() {
   }
 }
 
-async function cancelSession() {
-  if (!activeSession.value || cancelling.value) return
-  cancelling.value = true
-  errorMsg.value = ''
+async function cancelSession(session: ActiveSession) {
+  if (cancellingId.value) return
+  cancellingId.value = session.id
+  cancelError.value = ''
   try {
-    await apiFetch(`/api/session/${activeSession.value.id}/cancel`, { method: 'POST' })
-    activeSession.value = null
+    await apiFetch(`/api/session/${session.id}/cancel`, { method: 'POST' })
+    activeSessions.value = activeSessions.value.filter((s) => s.id !== session.id)
   }
   catch (e: unknown) {
-    errorMsg.value = (e as { data?: { message?: string } }).data?.message
+    cancelError.value = (e as { data?: { message?: string } }).data?.message
       ?? 'Failed to cancel session.'
   }
   finally {
-    cancelling.value = false
+    cancellingId.value = null
   }
 }
 </script>
@@ -200,14 +247,28 @@ async function cancelSession() {
 
 .tan { color: var(--psy-tan); }
 
-/* ── Resume banner ──────────────────────────────────────────────────────── */
+/* ── Resume list ────────────────────────────────────────────────────────── */
+.resume-list {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.resume-list-label {
+  font-family: var(--psy-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--psy-text-faint);
+}
+
 .resume-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  margin-top: 32px;
   padding: 18px 22px;
   background: var(--psy-bg-panel);
   border: 1px solid var(--psy-line);
@@ -363,8 +424,18 @@ async function cancelSession() {
   margin-top: 20px;
 }
 
-.card-begin {
+/* begin + how-does-this-work sit side-by-side when the card is wide enough,
+   and wrap to a stack when it isn't */
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-top: 18px;
+}
+
+.card-begin {
+  flex: 1 1 0;
+  min-width: max-content;
   background: var(--psy-tan);
   color: var(--psy-bg);
   border: none;
@@ -379,6 +450,25 @@ async function cancelSession() {
 .card-begin:disabled {
   opacity: 0.7;
   cursor: progress;
+}
+
+.card-help {
+  flex: 1 1 0;
+  min-width: max-content;
+  background: transparent;
+  border: 1px solid var(--psy-line-strong);
+  border-radius: 2px;
+  padding: 14px;
+  font-family: var(--psy-font-mono);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--psy-text-muted);
+  cursor: pointer;
+}
+
+.card-help:hover {
+  border-color: var(--psy-tan);
+  color: var(--psy-text);
 }
 
 .card-error {
@@ -398,80 +488,10 @@ async function cancelSession() {
   border-radius: 2px;
 }
 
-/* ── The loop ───────────────────────────────────────────────────────────── */
-.loop-section { margin-top: 48px; }
-
-.loop-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 24px;
-  gap: 12px;
-}
-
-.loop-label {
-  font-family: var(--psy-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--psy-text-faint);
-}
-
-.loop-track {
-  display: flex;
-  align-items: stretch;
-  gap: 14px;
-}
-
-.loop-card {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  background: var(--psy-bg-base);
-  border: 1px solid var(--psy-line);
-  padding: 18px 16px;
-}
-
-.loop-num {
-  font-family: var(--psy-font-mono);
-  font-size: 11px;
-}
-
-.loop-num--faint { color: var(--psy-text-faint); }
-.loop-num--signal { color: var(--psy-signal); }
-.loop-num--locked { color: var(--psy-locked-fg); }
-
-.loop-name {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--psy-text);
-}
-
-.loop-desc {
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--psy-text-faint);
-}
-
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 860px) {
   .protocol-grid {
     grid-template-columns: 1fr;
-  }
-
-  /* keep the 7-stage loop a single scrollable row */
-  .loop-track {
-    overflow-x: auto;
-    padding-bottom: 6px;
-    scroll-snap-type: x proximity;
-  }
-
-  .loop-card {
-    flex: 0 0 auto;
-    width: 144px;
-    scroll-snap-align: start;
   }
 }
 </style>

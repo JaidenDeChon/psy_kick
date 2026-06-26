@@ -142,27 +142,25 @@
     </div>
 
     <!-- Lock confirm modal -->
-    <UModal v-model:open="showLockModal" :dismissible="!locking">
-      <template #header>
-        <div>
-          <p class="label-mono" style="color: var(--psy-locked-fg, #E0795F); font-size: 10px; letter-spacing: 0.12em">⚠ irreversible</p>
-          <h2 style="font-size: 20px; font-weight: 700; margin-top: 4px; color: var(--psy-text)">Lock this session?</h2>
-        </div>
-      </template>
-
-      <template #body>
-        <div style="padding: 4px 0; display: flex; flex-direction: column; gap: 14px">
-          <p style="font-size: 14px; color: var(--psy-text-muted)">
-            All drawings and notes become permanently read-only. You'll rank the candidates, then the target image is revealed.
+    <DialogShell
+      v-model:open="showLockModal"
+      eyebrow="irreversible"
+      title="Lock this session?"
+      tone="warn"
+      :dismissible="!locking"
+      :close-disabled="locking"
+    >
+      <div style="display: flex; flex-direction: column; gap: 14px">
+        <p style="font-size: 14px; color: var(--psy-text-muted)">
+          All drawings and notes become permanently read-only. You'll rank the candidates, then the target image is revealed.
+        </p>
+        <div class="psy-panel" style="padding: 12px">
+          <p class="ref-token" style="font-size: 16px; color: var(--psy-signal)">{{ referenceNumber }}</p>
+          <p class="label-mono" style="margin-top: 8px; color: var(--psy-text-muted)">
+            {{ fieldCount }} fields captured · sketch {{ hasSketch ? 'included' : 'empty' }}
           </p>
-          <div class="psy-panel" style="padding: 12px">
-            <p class="ref-token" style="font-size: 16px; color: var(--psy-signal)">{{ referenceNumber }}</p>
-            <p class="label-mono" style="margin-top: 8px; color: var(--psy-text-muted)">
-              {{ fieldCount }} fields captured · sketch {{ hasSketch ? 'included' : 'empty' }}
-            </p>
-          </div>
         </div>
-      </template>
+      </div>
 
       <template #footer>
         <div class="modal-footer-btns">
@@ -179,22 +177,20 @@
           </UButton>
         </div>
       </template>
-    </UModal>
+    </DialogShell>
 
     <!-- Cancel confirm modal -->
-    <UModal v-model:open="showCancelModal" :dismissible="!cancelling">
-      <template #header>
-        <div>
-          <p class="label-mono" style="color: var(--psy-locked-fg, #E0795F); font-size: 10px; letter-spacing: 0.12em">⚠ discards_session</p>
-          <h2 style="font-size: 20px; font-weight: 700; margin-top: 4px; color: var(--psy-text)">Cancel this session?</h2>
-        </div>
-      </template>
-
-      <template #body>
-        <p style="font-size: 14px; color: var(--psy-text-muted)">
-          This session and everything captured so far will be permanently discarded. The target is never revealed.
-        </p>
-      </template>
+    <DialogShell
+      v-model:open="showCancelModal"
+      eyebrow="discards_session"
+      title="Cancel this session?"
+      tone="warn"
+      :dismissible="!cancelling"
+      :close-disabled="cancelling"
+    >
+      <p style="font-size: 14px; color: var(--psy-text-muted)">
+        This session and everything captured so far will be permanently discarded. The target is never revealed.
+      </p>
 
       <template #footer>
         <div class="modal-footer-btns">
@@ -211,7 +207,7 @@
           </UButton>
         </div>
       </template>
-    </UModal>
+    </DialogShell>
 
     <!-- Save indicator -->
     <div v-if="saving" class="save-indicator label-mono">saving_</div>

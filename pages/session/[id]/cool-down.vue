@@ -17,33 +17,40 @@
       <p style="font-size: 13px; font-family: var(--psy-font-mono); color: var(--psy-text-faint); margin-top: 8px">clear your mind before capturing impressions</p>
     </div>
 
-    <div class="action-row">
+    <div class="actions">
+      <div class="action-row">
+        <UButton
+          size="lg"
+          color="neutral"
+          variant="outline"
+          style="font-family: var(--psy-font-mono); letter-spacing: 0.06em"
+          @click="showHelp = true"
+        >
+          wait, how do I do this?
+        </UButton>
+        <UButton
+          size="lg"
+          variant="outline"
+          style="font-family: var(--psy-font-mono); letter-spacing: 0.06em"
+          @click="enter"
+        >
+          begin →
+        </UButton>
+      </div>
+
       <UButton
-        size="lg"
+        variant="ghost"
         color="neutral"
-        variant="outline"
-        style="font-family: var(--psy-font-mono); letter-spacing: 0.06em"
-        @click="showHelp = true"
+        :loading="cancelling"
+        style="font-family: var(--psy-font-mono); letter-spacing: 0.06em; color: var(--psy-text-faint)"
+        @click="cancelSession"
       >
-        wait, how do I do this?
-      </UButton>
-      <UButton
-        size="lg"
-        variant="outline"
-        style="font-family: var(--psy-font-mono); letter-spacing: 0.06em"
-        @click="enter"
-      >
-        begin →
+        ✕ cancel_session
       </UButton>
     </div>
 
-    <!-- Explainer modal (copy TBD) -->
-    <UModal v-model:open="showHelp" title="how this works">
-      <template #body>
-        <!-- explainer content goes here -->
-        <div class="help-body" />
-      </template>
-    </UModal>
+    <!-- Explainer dialog -->
+    <HowThisWorksDialog v-model:open="showHelp" />
   </div>
 </template>
 
@@ -55,6 +62,7 @@ const { apiFetch } = useApi()
 const sessionId = route.params.id as string
 const referenceNumber = ref('')
 const showHelp = ref(false)
+const cancelling = ref(false)
 
 // Load session to get reference number
 onMounted(async () => {
@@ -75,6 +83,19 @@ const ring2Style = { animation: 'psy-ring 3.5s ease-out infinite 1.75s' }
 
 function enter() {
   router.push(`/session/${sessionId}/capture`)
+}
+
+// Discard this freshly-created session and return to the protocol picker.
+async function cancelSession() {
+  if (cancelling.value) return
+  cancelling.value = true
+  try {
+    await apiFetch(`/api/session/${sessionId}/cancel`, { method: 'POST' })
+  }
+  catch { /* non-fatal — leave regardless */ }
+  finally {
+    router.push('/sessions')
+  }
 }
 </script>
 
@@ -133,15 +154,18 @@ function enter() {
   text-align: center;
 }
 
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
 .action-row {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
   gap: 16px;
-}
-
-.help-body {
-  min-height: 80px;
 }
 </style>

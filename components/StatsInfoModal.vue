@@ -1,13 +1,5 @@
 <template>
-  <UModal v-model:open="open" title="what these mean">
-    <template #header>
-      <div>
-        <p class="label-mono" style="color: var(--psy-signal); font-size: 10px">statistics_explained</p>
-        <h2 style="font-size: 18px; font-weight: 700; margin-top: 4px">What these numbers mean</h2>
-      </div>
-    </template>
-
-    <template #body>
+  <DialogShell v-model:open="open" eyebrow="statistics_explained" title="What these numbers mean" width-class="w-[520px]">
     <div class="stats-explainer">
       <section>
         <h3 class="label-mono" style="color: var(--psy-tan)">hit_rate</h3>
@@ -43,12 +35,13 @@
         <p class="label-mono" style="color: var(--psy-text-faint)">25% baseline · 4-candidate rank-order · no vibe-check</p>
       </div>
     </div>
-    </template>
 
     <template #footer>
-      <UButton variant="ghost" @click="open = false">Close</UButton>
+      <div class="stats-foot">
+        <UButton variant="ghost" @click="open = false">Close</UButton>
+      </div>
     </template>
-  </UModal>
+  </DialogShell>
 </template>
 
 <script setup lang="ts">
@@ -85,5 +78,11 @@ section p {
 .info-footer {
   padding-top: 12px;
   border-top: 1px solid var(--psy-line);
+}
+
+.stats-foot {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
 }
 </style>

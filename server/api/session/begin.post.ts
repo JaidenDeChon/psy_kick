@@ -6,6 +6,24 @@ export default defineEventHandler(async (event) => {
   const { user } = await getServerUser(event)
   const db = useServiceRoleClient()
 
+  // Only one session of each type may be active at a time. CRV is the only
+  // protocol today, so any in-progress (non-revealed) session blocks a new one.
+  // When ERV/ARV land, scope this check to the requested protocol.
+  const { data: existing } = await db
+    .from('sessions')
+    .select('id')
+    .eq('user_id', user.id)
+    .neq('status', 'revealed')
+    .limit(1)
+    .maybeSingle()
+
+  if (existing) {
+    throw createError({
+      statusCode: 409,
+      message: 'You already have an active session. Finish or cancel it before starting a new one.',
+    })
+  }
+
   // Pick a random active target
   const { data: targets, error: targetErr } = await db
     .from('targets')

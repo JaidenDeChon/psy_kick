@@ -2,44 +2,39 @@
 /**
  * seed-targets.ts — psy_kick target/decoy image seeding from Pixabay
  * ----------------------------------------------------------------------------
- * Two-phase flow (the cut between them is the human review you can't automate):
+ * The per-category cull is now AUTOMATED. Flow:
  *
- *   1) bun run seed-targets.ts fetch
+ *   1) bun run seed fetch
  *        - queries Pixabay per category (categories ARE the queries — no classifier)
  *        - filters by size, dedupes by id + byte-hash + perceptual hash
- *        - downloads candidates to seed/candidates/<category>/
- *        - writes manifest.json (editable) + review.html (a contact sheet to eyeball)
+ *        - downloads a candidate POOL per category to seed/candidates/<category>/
+ *        - AUTO-SELECTS the most visually-distinct `targetPerCategory` from that
+ *          pool (structure + colour fingerprint, farthest-first) — distinct
+ *          WITHIN and ACROSS categories. No manual eyeballing required.
+ *        - writes manifest.json + review.html (now an OPTIONAL sanity sheet)
  *
- *   2) <you review review.html, set "keep": false on rejects in manifest.json,
- *       polish captions/attributes, aiming for ~TARGET_PER_CATEGORY mutually
- *       distinct images per category>
+ *   2) (optional) glance at review.html; set "keep": false on any dud, or skip.
  *
- *   3) bun run seed-targets.ts build
+ *   3) bun run seed build
  *        - copies the kept originals to seed/images/<category>_NNN.<ext>
  *        - writes targets.csv (your schema) + provenance.csv (audit/attribution)
+ *        - records built Pixabay ids in seed/seeded-ids.json so the NEXT run adds
+ *          new photos instead of re-adding ones you already have.
+ *
+ *   4) bun run seed:upload   (upload-seed.ts → private bucket + targets rows)
  *
  * PRECAUTIONS BAKED IN
  *   - LICENSE: current Pixabay uploads are the *Pixabay Content License*, NOT
- *     CC0 / public domain. We label them accurately (see LICENSE below). If you
- *     need genuine CC0/PD, source those buckets from Wikimedia Commons / Openverse
- *     and change LICENSE per source.
- *   - ATTRIBUTION (required): Pixabay's API terms ask you to show where images
- *     are from. provenance.csv carries the contributor (user, user_id) + source
- *     page (pageURL) per image so you can build a credits view; the target CSV
- *     stays in your schema. Contributor profile URL format:
- *     https://pixabay.com/users/{user}-{user_id}/
- *   - COMPLIANCE: Pixabay requires caching API responses 24h and prohibits
- *     *systematic mass downloads*. The compliance line is scope, not speed — a
- *     one-time curated seed of a few dozen images is the intended use. We cache to
- *     seed/.cache, throttle API calls, handle HTTP 429 with the reset window, and
- *     add a small courtesy delay between downloads. Don't loop this into a scraper.
- *   - NO CONVERSION: originals are stored as-is. @nuxt/image handles resizing /
- *     modern formats at serve time.
+ *     CC0 / public domain. Labelled accurately. For genuine CC0/PD, source from
+ *     Wikimedia Commons / Openverse and change LICENSE per source.
+ *   - ATTRIBUTION (required): provenance.csv carries contributor + source page.
+ *   - COMPLIANCE: 24h API cache, throttled calls, 429 handling, courtesy delays.
+ *     Scope is a curated few-hundred, not a scraper.
+ *   - NO CONVERSION: originals stored as-is; @nuxt/image handles serve-time formats.
  *
  *   ⚠ BLINDING: outputs land in seed/, NOT public/. These are remote-viewing
- *     TARGETS — they must never be publicly fetchable. Upload them to a PRIVATE
- *     Supabase Storage bucket and serve via a post-lock signed URL. Do not point
- *     @nuxt/image's public IPX flow at the target bucket.
+ *     TARGETS — never publicly fetchable. Upload to a PRIVATE Supabase bucket and
+ *     serve only via post-lock signed URLs.
  *
  * REQUIRES: Bun >= 1.3.14 (for Bun.Image) · env PIXABAY_API_KEY
  * INSTALL:  bun add jpeg-js
@@ -67,14 +62,16 @@ const CONFIG = {
   provenancePath: "seed/provenance.csv",
   manifestPath: "seed/candidates/manifest.json",
   reviewPath: "seed/candidates/review.html",
+  ledgerPath: "seed/seeded-ids.json", // Pixabay ids already committed → skipped on re-run
 
   minWidth: 1280,
   minHeight: 720,
-  orientation: "all",               // "all" | "horizontal" | "vertical" — horizontal gives a more uniform judging grid
-  perTerm: 12,                      // results requested per query term (API allows 3–200)
-  candidatesPerCategory: 15,        // cap kept per category after dedup
-  targetPerCategory: 8,             // desired final count (you decide in review)
-  hammingThreshold: 10,             // <= this between dHashes => near-duplicate
+  orientation: "all",               // "all" | "horizontal" | "vertical"
+  perTerm: 25,                      // results requested per query term (API allows 3–200)
+  candidatesPerCategory: 40,        // size of the deduped POOL we auto-select FROM
+  targetPerCategory: 16,            // how many DISTINCT images to keep per category
+  hammingThreshold: 10,             // <= this between dHashes => near-duplicate (dropped pre-select)
+  structureWeight: 0.55,            // distinctness = 0.55*structure + 0.45*colour
   editorsChoice: false,             // true = higher quality but far fewer hits
   requestDelayMs: 1200,             // politeness between live API calls
   downloadDelayMs: 250,             // courtesy delay between image downloads
@@ -83,10 +80,10 @@ const CONFIG = {
   maxPixels: 6000 * 6000,           // Bun.Image decompression-bomb guard
 };
 
-// Categories ARE the queries. These query lists are a tuned starting point —
-// expand them per category until you get enough distinct candidates. motion and
-// energy are interpretive and diverse, so they run WITHOUT a pixabayCategory
-// filter (the `category` param is a strict AND-filter and would starve them).
+// Categories ARE the queries. Expand these lists per category to grow the pool —
+// the auto-selector then keeps only the most distinct from whatever you fetch.
+// motion and energy run WITHOUT a pixabayCategory filter (the `category` param is
+// a strict AND-filter and would starve them).
 type CategorySpec = { queries: string[]; pixabayCategory?: string; base: string[] };
 const CATEGORIES: Record<string, CategorySpec> = {
   land: {
@@ -172,7 +169,7 @@ async function searchPixabay(query: string, pixabayCategory?: string, attempt = 
 
 // Perceptual dHash. Bun.Image does the fast native resize; jpeg-js reads the
 // 9x8 pixels because Bun.Image has no raw-pixel output yet. Returns null on any
-// decode failure (we then fall back to exact-dedup + the human review).
+// decode failure (we then fall back to exact-dedup only for that image).
 async function dHash(bytes: Uint8Array): Promise<bigint | null> {
   try {
     const small = await new Bun.Image(bytes, { maxPixels: CONFIG.maxPixels })
@@ -208,6 +205,86 @@ async function sha256(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
   return Buffer.from(digest).toString("hex");
 }
 
+// ─── perceptual signature: structure (dHash) + coarse colour ────────────────
+// dHash captures gradient/structure but is colour-blind; a 4x4 average-colour
+// grid fills that gap. Together they're a usable proxy for "visually distinct".
+type Sig = { dhash: bigint | null; color: number[] | null };
+
+async function colorSig(bytes: Uint8Array): Promise<number[] | null> {
+  try {
+    const small = await new Bun.Image(bytes, { maxPixels: CONFIG.maxPixels })
+      .resize(4, 4, { fit: "fill" })
+      .jpeg()
+      .bytes();
+    const { width, height, data } = jpeg.decode(small, { useTArray: true });
+    if (width !== 4 || height !== 4) return null;
+    const sig: number[] = [];
+    for (let p = 0; p < 16; p++) {
+      const i = p * 4; // RGBA
+      sig.push(data[i], data[i + 1], data[i + 2]);
+    }
+    return sig; // 48 dims, 0..255
+  } catch {
+    return null;
+  }
+}
+
+// Combined perceptual distance in [0,1]. A missing component contributes 0.5.
+function perceptualDist(a: Sig, b: Sig): number {
+  let s = 0.5;
+  if (a.dhash !== null && b.dhash !== null) s = hamming(a.dhash, b.dhash) / 64;
+  let c = 0.5;
+  if (a.color && b.color) {
+    let sum = 0;
+    for (let i = 0; i < a.color.length; i++) { const d = a.color[i] - b.color[i]; sum += d * d; }
+    c = Math.sqrt(sum) / (Math.sqrt(a.color.length) * 255);
+  }
+  return CONFIG.structureWeight * s + (1 - CONFIG.structureWeight) * c;
+}
+
+// Farthest-first selection: greedily pick the k items most spread apart, also
+// staying far from `ref` (images already chosen in earlier categories). This is
+// the automated stand-in for the manual "keep the visually-distinct ones" cull.
+function selectDiverse<T extends { sig: Sig }>(items: T[], k: number, ref: Sig[]): T[] {
+  if (items.length <= k) return [...items];
+  const taken = new Array(items.length).fill(false);
+  const minDist = items.map((it) =>
+    ref.length ? Math.min(...ref.map((r) => perceptualDist(it.sig, r))) : Number.POSITIVE_INFINITY
+  );
+  const chosen: T[] = [];
+  for (let step = 0; step < k; step++) {
+    let bi = -1, best = -1;
+    for (let i = 0; i < items.length; i++) {
+      if (!taken[i] && minDist[i] > best) { best = minDist[i]; bi = i; }
+    }
+    if (bi < 0) break;
+    taken[bi] = true;
+    chosen.push(items[bi]);
+    for (let i = 0; i < items.length; i++) {
+      if (taken[i]) continue;
+      const d = perceptualDist(items[bi].sig, items[i].sig);
+      if (d < minDist[i]) minDist[i] = d;
+    }
+  }
+  return chosen;
+}
+
+// ─── seeded-id ledger: photos already committed; skipped on future runs ──────
+async function loadLedger(): Promise<Set<number>> {
+  const f = Bun.file(CONFIG.ledgerPath);
+  if (!(await f.exists())) return new Set();
+  try {
+    const ids = (await f.json()) as number[];
+    return new Set(ids);
+  } catch {
+    return new Set();
+  }
+}
+
+async function saveLedger(ids: Set<number>): Promise<void> {
+  await Bun.write(CONFIG.ledgerPath, JSON.stringify([...ids].sort((a, b) => a - b)));
+}
+
 function extFromUrl(url: string): string {
   const e = extname(new URL(url).pathname).toLowerCase();
   return e && e.length <= 5 ? e : ".jpg";
@@ -238,10 +315,10 @@ const escapeHtml = (s: string) =>
 
 // --- manifest type ----------------------------------------------------------
 type Candidate = {
-  keep: boolean;            // set false in review to drop
+  keep: boolean;            // set false in review to drop (optional now)
   category: string;
   file: string;             // candidate path (relative to project root)
-  id: number;
+  id: number;               // Pixabay id (also feeds the seeded-id ledger)
   pageURL: string;
   user: string;
   userId: number;
@@ -250,14 +327,16 @@ type Candidate = {
   width: number;
   height: number;
   phash: string | null;
-  caption: string;          // suggested — edit in review
-  attributes: string;       // suggested — edit in review
+  caption: string;          // suggested — edit in review if you like
+  attributes: string;       // suggested — edit in review if you like
   license: string;
 };
 
 // --- fetch command ----------------------------------------------------------
 async function runFetch() {
   const manifest: Candidate[] = [];
+  const seededIds = await loadLedger();        // skip photos already committed
+  const globalRef: Sig[] = [];                 // chosen sigs so far → cross-category distinctness
 
   for (const [category, spec] of Object.entries(CATEGORIES)) {
     console.log(`\n[${category}] querying ${spec.queries.length} terms…`);
@@ -275,16 +354,18 @@ async function runFetch() {
       for (const h of hits) {
         if (h.type !== "photo") continue;
         if (h.imageWidth < CONFIG.minWidth || h.imageHeight < CONFIG.minHeight) continue;
+        if (seededIds.has(h.id)) continue;     // already in the pool from a previous run
         if (!byId.has(h.id)) byId.set(h.id, { ...h, sourceQuery: q });
       }
     }
 
-    const kept: Candidate[] = [];
+    // Build a deduped candidate POOL (near-dups removed), then auto-select from it.
+    const pool: { cand: Candidate; sig: Sig }[] = [];
     const keptHashes: bigint[] = [];
     const seenContent = new Set<string>();
 
     for (const h of byId.values()) {
-      if (kept.length >= CONFIG.candidatesPerCategory) break;
+      if (pool.length >= CONFIG.candidatesPerCategory) break;
 
       let bytes: Uint8Array<ArrayBuffer>;
       try {
@@ -304,6 +385,7 @@ async function runFetch() {
       if (ph !== null && keptHashes.some((k) => hamming(k, ph) <= CONFIG.hammingThreshold)) {
         continue;                                                   // near-duplicate
       }
+      const color = await colorSig(bytes);
 
       const ext = extFromUrl(h.largeImageURL);
       const file = join(CONFIG.candidatesDir, category, `${h.id}${ext}`);
@@ -311,31 +393,38 @@ async function runFetch() {
 
       seenContent.add(content);
       if (ph !== null) keptHashes.push(ph);
-      kept.push({
-        keep: true, category, file, id: h.id, pageURL: h.pageURL, user: h.user, userId: h.user_id,
-        tags: h.tags, sourceQuery: h.sourceQuery, width: h.imageWidth, height: h.imageHeight,
-        phash: ph === null ? null : ph.toString(16),
-        caption: suggestCaption(h.tags),
-        attributes: suggestAttributes(h.tags, spec.base),
-        license: LICENSE,
+      pool.push({
+        cand: {
+          keep: true, category, file, id: h.id, pageURL: h.pageURL, user: h.user, userId: h.user_id,
+          tags: h.tags, sourceQuery: h.sourceQuery, width: h.imageWidth, height: h.imageHeight,
+          phash: ph === null ? null : ph.toString(16),
+          caption: suggestCaption(h.tags),
+          attributes: suggestAttributes(h.tags, spec.base),
+          license: LICENSE,
+        },
+        sig: { dhash: ph, color },
       });
     }
 
-    if (kept.length < CONFIG.targetPerCategory) {
-      console.warn(`  ⚠ only ${kept.length} candidates (< ${CONFIG.targetPerCategory}); add more query terms for "${category}".`);
+    // Auto-select the most visually-distinct set — distinct within this category
+    // AND pushed away from everything already chosen in other categories.
+    const chosen = selectDiverse(pool, CONFIG.targetPerCategory, globalRef);
+    for (const x of chosen) globalRef.push(x.sig);
+
+    if (chosen.length < CONFIG.targetPerCategory) {
+      console.warn(`  ⚠ only ${chosen.length} distinct of ${pool.length} (< ${CONFIG.targetPerCategory}); add query terms for "${category}".`);
     } else {
-      console.log(`  kept ${kept.length} candidates.`);
+      console.log(`  auto-selected ${chosen.length} of ${pool.length} (max-distinct).`);
     }
-    manifest.push(...kept);
+    manifest.push(...chosen.map((x) => x.cand));
   }
 
   await Bun.write(CONFIG.manifestPath, JSON.stringify(manifest, null, 2));
   await Bun.write(CONFIG.reviewPath, renderReview(manifest));
 
-  console.log(`\nWrote ${manifest.length} candidates across ${Object.keys(CATEGORIES).length} categories.`);
-  console.log(`  Review:  open ${CONFIG.reviewPath} in a browser`);
-  console.log(`  Edit:    ${CONFIG.manifestPath}  (set "keep": false to drop; polish caption/attributes)`);
-  console.log(`  Then:    bun run ${process.argv[1]} build`);
+  console.log(`\nWrote ${manifest.length} auto-selected candidates across ${Object.keys(CATEGORIES).length} categories.`);
+  console.log(`  Review (optional):  open ${CONFIG.reviewPath}`);
+  console.log(`  Then:               bun run seed build`);
 }
 
 function renderReview(manifest: Candidate[]): string {
@@ -375,9 +464,9 @@ function renderReview(manifest: Candidate[]): string {
   code{background:#e8e0d2;padding:.05rem .3rem;border-radius:3px}
 </style>
 <h1>psy_kick · candidate review</h1>
-<p class="note">Visual distinctness is the one thing the queries can't guarantee — so this is the human cut.
-Aim for ~${CONFIG.targetPerCategory} per category that are mutually distinct <em>and</em> distinct across categories.
-Drop one by setting <code>"keep": false</code> in <code>manifest.json</code>; polish captions/attributes there too. Then run <code>build</code>.</p>
+<p class="note">These were <b>auto-selected</b> for maximum visual distinctness (structure + colour),
+within and across categories. This sheet is an <em>optional</em> sanity check — set
+<code>"keep": false</code> on any dud in <code>manifest.json</code>, or just run <code>bun run seed build</code>.</p>
 ${sections}`;
 }
 
@@ -409,11 +498,17 @@ async function runBuild() {
   await Bun.write(CONFIG.csvPath, csvRows.join("\n") + "\n");
   await Bun.write(CONFIG.provenancePath, provRows.join("\n") + "\n");
 
+  // Remember these photos so the next fetch adds NEW ones, not repeats.
+  const ledger = await loadLedger();
+  for (const c of keepers) ledger.add(c.id);
+  await saveLedger(ledger);
+
   const summary = [...counters.entries()].map(([c, n]) => `${c}:${n}`).join("  ") || "(none kept)";
   console.log(`Built ${keepers.length} targets`);
   console.log(`  ${summary}`);
   console.log(`  CSV:        ${CONFIG.csvPath}`);
   console.log(`  Provenance: ${CONFIG.provenancePath}`);
+  console.log(`  Ledger:     ${CONFIG.ledgerPath}  (${ledger.size} ids total)`);
   console.log(`  Images:     ${join(CONFIG.outDir, CONFIG.imagesSubdir)}/  ← upload to a PRIVATE Supabase bucket, never public/`);
 }
 
@@ -425,8 +520,9 @@ else {
   console.log(`psy_kick target seeder
 
 Usage:
-  bun run ${process.argv[1]} fetch    # query Pixabay, dedupe, stage candidates + review.html
-  bun run ${process.argv[1]} build    # emit targets.csv + copy chosen images from the manifest
+  bun run seed fetch     # query Pixabay, dedupe, AUTO-SELECT the most distinct per category
+  bun run seed build     # emit targets.csv + copy chosen images + update the seeded-id ledger
+  bun run seed:upload    # push images to the PRIVATE Supabase bucket + insert rows
 
 Requires Bun >= 1.3.14 and env PIXABAY_API_KEY.   Install dep:  bun add jpeg-js`);
 }
