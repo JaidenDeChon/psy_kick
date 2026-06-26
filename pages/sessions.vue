@@ -341,7 +341,11 @@ async function cancelSession(session: ActiveSession) {
 /* ── Protocol cards ─────────────────────────────────────────────────────── */
 .protocol-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /* Wrap to fewer columns once a card would drop below ~360px, so they step
+     3 → 2 → 1 while still roomy instead of shrinking toward 300px. The
+     min(100%, …) guard keeps a column from ever exceeding the available width
+     (otherwise the grid overflows and the cards get clipped on narrow screens). */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
   gap: 22px;
   margin-top: 42px;
 }
@@ -486,12 +490,5 @@ async function cancelSession(session: ActiveSession) {
   font-size: 13px;
   text-align: center;
   border-radius: 2px;
-}
-
-/* ── Responsive ─────────────────────────────────────────────────────────── */
-@media (max-width: 860px) {
-  .protocol-grid {
-    grid-template-columns: 1fr;
-  }
 }
 </style>
