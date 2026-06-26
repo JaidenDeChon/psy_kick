@@ -2,7 +2,9 @@
 /**
  * seed-targets.ts — psy_kick target/decoy image seeding from Pixabay
  * ----------------------------------------------------------------------------
- * The per-category cull is now AUTOMATED. Flow:
+ * The per-category cull is AUTOMATED, and the run prints a phase-delineated,
+ * constantly-updating readout (FETCH -> per-category query/download/select ->
+ * totals; BUILD -> copy/write/ledger -> totals). Flow:
  *
  *   1) bun run seed fetch
  *        - queries Pixabay per category (categories ARE the queries — no classifier)
@@ -21,7 +23,7 @@
  *        - records built Pixabay ids in seed/seeded-ids.json so the NEXT run adds
  *          new photos instead of re-adding ones you already have.
  *
- *   4) bun run seed:upload   (upload-seed.ts → private bucket + targets rows)
+ *   4) bun run seed:upload   (upload-seed.ts -> private bucket + targets rows)
  *
  * PRECAUTIONS BAKED IN
  *   - LICENSE: current Pixabay uploads are the *Pixabay Content License*, NOT
@@ -32,7 +34,7 @@
  *     Scope is a curated few-hundred, not a scraper.
  *   - NO CONVERSION: originals stored as-is; @nuxt/image handles serve-time formats.
  *
- *   ⚠ BLINDING: outputs land in seed/, NOT public/. These are remote-viewing
+ *   BLINDING: outputs land in seed/, NOT public/. These are remote-viewing
  *     TARGETS — never publicly fetchable. Upload to a PRIVATE Supabase bucket and
  *     serve only via post-lock signed URLs.
  *
@@ -62,7 +64,7 @@ const CONFIG = {
   provenancePath: "seed/provenance.csv",
   manifestPath: "seed/candidates/manifest.json",
   reviewPath: "seed/candidates/review.html",
-  ledgerPath: "seed/seeded-ids.json", // Pixabay ids already committed → skipped on re-run
+  ledgerPath: "seed/seeded-ids.json", // Pixabay ids already committed -> skipped on re-run
 
   minWidth: 1280,
   minHeight: 720,
@@ -80,6 +82,43 @@ const CONFIG = {
   maxPixels: 6000 * 6000,           // Bun.Image decompression-bomb guard
 };
 
+// ─── terminal readout: declassified-document styling ────────────────────────
+// Electric accent rationed to "signal" moments (phase changes, completions);
+// the bulk of the stream stays muted. Respects NO_COLOR and non-TTY pipes.
+const TTY = process.stdout.isTTY ?? false;
+const COLOR = TTY && !Bun.env.NO_COLOR;
+const paint = (code: string) => (s: string) => (COLOR ? `\x1b[${code}m${s}\x1b[0m` : s);
+const dim = paint("2");
+const bold = paint("1");
+const signal = paint("38;2;0;99;219"); // psy_kick electric blue — signal moments only
+const amber = paint("38;5;179");
+
+const RULE_W = 62;
+function rule(label = "", ch = "─"): string {
+  if (!label) return ch.repeat(RULE_W);
+  const tail = Math.max(0, RULE_W - label.length - 4);
+  return `${ch}${ch} ${label} ${ch.repeat(tail)}`;
+}
+// Strongest delineation: a major aspect of the run (FETCH / BUILD / COMPLETE).
+function phase(label: string): void {
+  console.log("\n" + signal(bold(rule(label.toUpperCase(), "═"))));
+}
+// One per category — the sub-aspects inside a phase.
+function section(label: string): void {
+  console.log("\n" + bold(rule(label)));
+}
+// An aligned step line under a section.
+function step(kind: string, msg: string): void {
+  console.log(`  ${dim(kind.padEnd(10))} ${msg}`);
+}
+// In-place updating line for long loops (downloads, copies). Finalise with a
+// newline. On a non-TTY pipe, only the final tally is printed.
+function progress(kind: string, msg: string, final = false): void {
+  const text = `  ${dim(kind.padEnd(10))} ${msg}`;
+  if (TTY) process.stdout.write("\r\x1b[2K" + text + (final ? "\n" : ""));
+  else if (final) console.log(text);
+}
+
 // Categories ARE the queries. Expand these lists per category to grow the pool —
 // the auto-selector then keeps only the most distinct from whatever you fetch.
 // motion and energy run WITHOUT a pixabayCategory filter (the `category` param is
@@ -88,27 +127,68 @@ type CategorySpec = { queries: string[]; pixabayCategory?: string; base: string[
 const CATEGORIES: Record<string, CategorySpec> = {
   land: {
     base: ["outdoor", "natural"], pixabayCategory: "nature",
-    queries: ["rolling hills", "desert dunes", "canyon landscape", "mountain valley", "rocky coastline cliff", "open plateau"],
+    queries: [
+      "rolling hills", "desert dunes", "canyon landscape", "mountain valley", "rocky coastline cliff", "open plateau",
+      "salt flats", "eroded badlands", "glacier ice field", "volcanic basalt plain", "karst limestone hills",
+      "red rock mesa buttes", "snowy mountain peak", "patchwork farmland fields", "cracked dry earth", "golden savanna grassland",
+      "chalk white cliffs", "windswept heather moorland", "painted hills strata", "dolomite mountain spires",
+      "rolling fog valley dawn", "arctic tundra plain", "frozen permafrost ground", "misty highland peaks",
+    ],
   },
   water: {
     base: ["outdoor"], pixabayCategory: "nature",
-    queries: ["calm lake", "ocean waves", "river rapids", "frozen lake", "misty fjord", "tropical lagoon"],
+    queries: [
+      "calm lake", "ocean waves", "river rapids", "frozen lake", "misty fjord", "tropical lagoon",
+      "turquoise glacier lagoon icebergs", "rainbow thermal spring pool", "underwater ocean blue", "mangrove swamp wetland",
+      "dark stormy seascape", "koi pond lily pads", "arctic ice floes", "braided river delta aerial",
+      "mountain lake reflection sunrise", "terraced hot springs",
+      "rocky tide pools coast", "seagrass turquoise shallows", "flooded forest reflection", "salt evaporation ponds aerial",
+      "desert oasis palms pool", "winding river canyon aerial", "calm sea dawn pastel", "reed marsh still water",
+    ],
   },
   structure: {
     base: ["outdoor", "geometric"], pixabayCategory: "buildings",
-    queries: ["steel bridge", "skyscraper exterior", "lighthouse", "hydroelectric dam", "radio tower", "stone archway"],
+    queries: [
+      "steel bridge", "skyscraper exterior", "lighthouse", "hydroelectric dam", "radio tower", "stone archway",
+      "gothic cathedral exterior", "greek temple columns", "suspension bridge cables", "modern glass facade",
+      "stone castle fortress", "asian pagoda temple", "domed mosque tilework", "ancient amphitheater ruins",
+      "aqueduct arches", "brutalist concrete tower",
+      "spiral staircase geometry", "shipping port gantry cranes", "observatory dome telescope", "industrial grain silos",
+      "highway interchange aerial", "power plant cooling towers", "cliffside monastery", "stadium roof architecture",
+    ],
   },
   motion: {
     base: ["outdoor", "dynamic"], // no category filter (diverse subjects)
-    queries: ["waterfall long exposure", "crashing ocean wave", "flock of birds flying", "blowing sand storm", "spinning windmill", "fast flowing stream"],
+    queries: [
+      "waterfall long exposure", "crashing ocean wave", "flock of birds flying", "blowing sand storm", "spinning windmill", "fast flowing stream",
+      "traffic light trails night", "star trails night sky", "galloping horses dust", "water splash droplet macro",
+      "swirling smoke abstract", "tornado funnel storm", "blowing autumn leaves wind", "hummingbird wings blur",
+      "school of fish swirling", "windswept wheat field",
+      "spinning carousel blur", "snow avalanche slide", "breaking wave barrel", "desert dust devil",
+      "rushing whitewater rapids", "stampeding wildebeest herd", "blowing dandelion seeds", "blizzard driving snow",
+    ],
   },
   life: {
     base: ["outdoor", "organic"], pixabayCategory: "nature",
-    queries: ["forest canopy", "coral reef fish", "wildflower meadow", "herd of elephants", "dense jungle", "lone oak tree"],
+    queries: [
+      "forest canopy", "coral reef fish", "wildflower meadow", "herd of elephants", "dense jungle", "lone oak tree",
+      "autumn maple foliage", "mushrooms forest floor macro", "flock of flamingos", "butterfly on flower macro",
+      "giant sequoia trunks", "sunflower field rows", "kelp forest underwater", "bamboo forest path",
+      "cherry blossom branches", "succulent cactus garden",
+      "lavender field rows", "red poppy field", "tropical orchid macro", "moss covered rainforest floor",
+      "savanna acacia tree silhouette", "fern frond macro", "deer in misty forest", "pine forest morning mist",
+    ],
   },
   energy: {
     base: ["luminous"], // no category filter (lightning/lava/neon don't share one)
-    queries: ["lightning storm", "lava flow volcano", "wildfire flames", "geyser eruption", "city neon lights night", "solar flare sun"],
+    queries: [
+      "lightning storm", "lava flow volcano", "wildfire flames", "geyser eruption", "city neon lights night", "solar flare sun",
+      "aurora borealis northern lights", "fireworks explosion burst", "bonfire flames sparks", "molten metal foundry",
+      "bioluminescent glowing waves", "sunbeams god rays clouds", "plasma electric arcs", "glowing fire embers macro",
+      "light painting long exposure", "many candle flames glow",
+      "milky way galaxy night sky", "neon sign tubes glow", "sparkler light trails", "fiery sunset sky clouds",
+      "lava fountain eruption night", "laser light beams show", "grinding steel sparks", "incandescent bulb filament",
+    ],
   },
 };
 
@@ -152,7 +232,7 @@ async function searchPixabay(query: string, pixabayCategory?: string, attempt = 
   // Pixabay returns 429 with an X-RateLimit-Reset (seconds until the window resets).
   if (res.status === 429 && attempt < CONFIG.maxRetries) {
     const reset = Number(res.headers.get("X-RateLimit-Reset")) || 30;
-    console.warn(`  · rate limited; waiting ${reset + 1}s before retry…`);
+    progress("query", amber(`rate limited — waiting ${reset + 1}s…`), true);
     await sleep((reset + 1) * 1000);
     return searchPixabay(query, pixabayCategory, attempt + 1);
   }
@@ -252,7 +332,7 @@ function selectDiverse<T extends { sig: Sig }>(items: T[], k: number, ref: Sig[]
     ref.length ? Math.min(...ref.map((r) => perceptualDist(it.sig, r))) : Number.POSITIVE_INFINITY
   );
   const chosen: T[] = [];
-  for (let step = 0; step < k; step++) {
+  for (let pick = 0; pick < k; pick++) {
     let bi = -1, best = -1;
     for (let i = 0; i < items.length; i++) {
       if (!taken[i] && minDist[i] > best) { best = minDist[i]; bi = i; }
@@ -334,56 +414,80 @@ type Candidate = {
 
 // --- fetch command ----------------------------------------------------------
 async function runFetch() {
+  phase("fetch");
   const manifest: Candidate[] = [];
   const seededIds = await loadLedger();        // skip photos already committed
-  const globalRef: Sig[] = [];                 // chosen sigs so far → cross-category distinctness
+  const globalRef: Sig[] = [];                 // chosen sigs so far -> cross-category distinctness
+  step("ledger", seededIds.size ? `${seededIds.size} ids already committed — will skip` : dim("empty (first run)"));
+  step("target", `${CONFIG.targetPerCategory}/category x ${Object.keys(CATEGORIES).length} categories = ${CONFIG.targetPerCategory * Object.keys(CATEGORIES).length} goal`);
+
+  const catCounts: [string, number][] = [];
 
   for (const [category, spec] of Object.entries(CATEGORIES)) {
-    console.log(`\n[${category}] querying ${spec.queries.length} terms…`);
-    const byId = new Map<number, Hit & { sourceQuery: string }>();
+    section(category);
 
+    // -- aspect 1: query --------------------------------------------------
+    const byId = new Map<number, Hit & { sourceQuery: string }>();
+    let qi = 0;
     for (const q of spec.queries) {
+      qi++;
+      const tag = dim(`[${qi}/${spec.queries.length}]`);
       let hits: Hit[] = [];
       try {
         hits = await searchPixabay(q, spec.pixabayCategory);
       } catch (e) {
-        console.warn(`  ! "${q}" failed: ${(e as Error).message}`);
+        step("query", `${tag} "${q}" ${amber("failed")}: ${(e as Error).message}`);
         continue;
       }
-      if (hits.length === 0) console.log(`  · "${q}" returned 0 hits — consider a different term`);
+      const before = byId.size;
       for (const h of hits) {
         if (h.type !== "photo") continue;
         if (h.imageWidth < CONFIG.minWidth || h.imageHeight < CONFIG.minHeight) continue;
         if (seededIds.has(h.id)) continue;     // already in the pool from a previous run
         if (!byId.has(h.id)) byId.set(h.id, { ...h, sourceQuery: q });
       }
+      const added = byId.size - before;
+      const note = hits.length === 0 ? amber("0 hits — try another term") : `${hits.length} hits · +${added} new`;
+      step("query", `${tag} "${q}" -> ${note}`);
     }
+    // Shuffle so the download pool samples across ALL query terms. With the
+    // per-category cap, an unshuffled pass only reaches the first few terms —
+    // the later, more varied ones would never make it into the pool.
+    const candidates = [...byId.values()];
+    for (let i = candidates.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+    }
+    step("pooled", `${candidates.length} unique candidates · sampling up to ${CONFIG.candidatesPerCategory} across all terms`);
 
-    // Build a deduped candidate POOL (near-dups removed), then auto-select from it.
+    // -- aspect 2: download + dedupe (live) -------------------------------
     const pool: { cand: Candidate; sig: Sig }[] = [];
     const keptHashes: bigint[] = [];
     const seenContent = new Set<string>();
+    let scanned = 0, dup = 0, fail = 0;
 
-    for (const h of byId.values()) {
+    for (const h of candidates) {
       if (pool.length >= CONFIG.candidatesPerCategory) break;
+      progress("download", `[${pool.length}/${CONFIG.candidatesPerCategory}] kept · scanned ${scanned} · dup ${dup} · fail ${fail}`);
+      scanned++;
 
       let bytes: Uint8Array<ArrayBuffer>;
       try {
         const res = await fetch(h.largeImageURL);
-        if (!res.ok) { console.warn(`  ! download ${h.id} -> ${res.status}`); continue; }
+        if (!res.ok) { fail++; continue; }
         bytes = new Uint8Array(await res.arrayBuffer());
         await sleep(CONFIG.downloadDelayMs); // courtesy throttle
       } catch {
-        console.warn(`  ! download ${h.id} failed`);
+        fail++;
         continue;
       }
 
       const content = await sha256(bytes);
-      if (seenContent.has(content)) continue;                      // byte-identical
+      if (seenContent.has(content)) { dup++; continue; }            // byte-identical
 
       const ph = await dHash(bytes);
       if (ph !== null && keptHashes.some((k) => hamming(k, ph) <= CONFIG.hammingThreshold)) {
-        continue;                                                   // near-duplicate
+        dup++; continue;                                            // near-duplicate
       }
       const color = await colorSig(bytes);
 
@@ -405,26 +509,29 @@ async function runFetch() {
         sig: { dhash: ph, color },
       });
     }
+    progress("download", `${pool.length} kept · scanned ${scanned} · dup ${dup} · fail ${fail}`, true);
 
-    // Auto-select the most visually-distinct set — distinct within this category
-    // AND pushed away from everything already chosen in other categories.
+    // -- aspect 3: select most-distinct -----------------------------------
     const chosen = selectDiverse(pool, CONFIG.targetPerCategory, globalRef);
     for (const x of chosen) globalRef.push(x.sig);
+    const short = chosen.length < CONFIG.targetPerCategory;
+    const verdict = short
+      ? amber(`short of ${CONFIG.targetPerCategory} — add query terms`)
+      : signal("max-distinct OK");
+    step("select", `${chosen.length} of ${pool.length} pooled · ${verdict}`);
 
-    if (chosen.length < CONFIG.targetPerCategory) {
-      console.warn(`  ⚠ only ${chosen.length} distinct of ${pool.length} (< ${CONFIG.targetPerCategory}); add query terms for "${category}".`);
-    } else {
-      console.log(`  auto-selected ${chosen.length} of ${pool.length} (max-distinct).`);
-    }
     manifest.push(...chosen.map((x) => x.cand));
+    catCounts.push([category, chosen.length]);
   }
 
   await Bun.write(CONFIG.manifestPath, JSON.stringify(manifest, null, 2));
   await Bun.write(CONFIG.reviewPath, renderReview(manifest));
 
-  console.log(`\nWrote ${manifest.length} auto-selected candidates across ${Object.keys(CATEGORIES).length} categories.`);
-  console.log(`  Review (optional):  open ${CONFIG.reviewPath}`);
-  console.log(`  Then:               bun run seed build`);
+  phase("fetch complete");
+  step("selected", signal(bold(String(manifest.length))) + ` images · ${catCounts.map(([c2, n]) => `${c2}:${n}`).join("  ")}`);
+  step("manifest", CONFIG.manifestPath);
+  step("review", `${CONFIG.reviewPath} ${dim("(optional sanity check)")}`);
+  step("next", bold("bun run seed build"));
 }
 
 function renderReview(manifest: Candidate[]): string {
@@ -441,7 +548,7 @@ function renderReview(manifest: Candidate[]): string {
       return `<figure>
   <img src="${rel}" loading="lazy" alt="#${c.id}">
   <figcaption>
-    <b>#${c.id}</b> · ${c.width}×${c.height}<br>
+    <b>#${c.id}</b> · ${c.width}x${c.height}<br>
     <span class="cap">${escapeHtml(c.caption)}</span><br>
     <span class="attr">${escapeHtml(c.attributes)}</span><br>
     <a href="${c.pageURL}" target="_blank" rel="noopener">source · ${escapeHtml(c.user)}</a>
@@ -472,17 +579,22 @@ ${sections}`;
 
 // --- build command ----------------------------------------------------------
 async function runBuild() {
+  phase("build");
   if (!(await Bun.file(CONFIG.manifestPath).exists())) {
-    console.error(`No manifest at ${CONFIG.manifestPath}. Run "fetch" first.`);
+    step("error", amber(`no manifest at ${CONFIG.manifestPath} — run "bun run seed fetch" first`));
     process.exit(1);
   }
   const manifest = (await Bun.file(CONFIG.manifestPath).json()) as Candidate[];
   const keepers = manifest.filter((c) => c.keep);
+  step("manifest", `${manifest.length} entries · ${keepers.length} marked keep`);
 
   const csvRows = [csvRow(["file", "category", "attributes", "caption", "license"])];
   const provRows = [csvRow(["file", "id", "pageURL", "user", "user_id", "tags", "sourceQuery", "phash"])];
   const counters = new Map<string, number>();
 
+  // -- aspect 1: copy originals (live) ----------------------------------
+  section("copy images");
+  let done = 0;
   for (const c of keepers) {
     const n = (counters.get(c.category) ?? 0) + 1;
     counters.set(c.category, n);
@@ -493,23 +605,27 @@ async function runBuild() {
     await Bun.write(join(CONFIG.outDir, rel), Bun.file(c.file)); // copy original, no conversion
     csvRows.push(csvRow([rel, c.category, c.attributes, c.caption, c.license]));
     provRows.push(csvRow([rel, String(c.id), c.pageURL, c.user, String(c.userId), c.tags, c.sourceQuery, c.phash ?? ""]));
+    done++;
+    progress("copy", `[${done}/${keepers.length}] ${rel}`);
   }
+  progress("copy", `${done} images copied`, true);
 
+  // -- aspect 2: write manifests ----------------------------------------
   await Bun.write(CONFIG.csvPath, csvRows.join("\n") + "\n");
   await Bun.write(CONFIG.provenancePath, provRows.join("\n") + "\n");
+  step("write", `${CONFIG.csvPath} · ${CONFIG.provenancePath}`);
 
-  // Remember these photos so the next fetch adds NEW ones, not repeats.
+  // -- aspect 3: update ledger ------------------------------------------
   const ledger = await loadLedger();
   for (const c of keepers) ledger.add(c.id);
   await saveLedger(ledger);
+  step("ledger", `${CONFIG.ledgerPath} ${dim(`(${ledger.size} ids total)`)}`);
 
-  const summary = [...counters.entries()].map(([c, n]) => `${c}:${n}`).join("  ") || "(none kept)";
-  console.log(`Built ${keepers.length} targets`);
-  console.log(`  ${summary}`);
-  console.log(`  CSV:        ${CONFIG.csvPath}`);
-  console.log(`  Provenance: ${CONFIG.provenancePath}`);
-  console.log(`  Ledger:     ${CONFIG.ledgerPath}  (${ledger.size} ids total)`);
-  console.log(`  Images:     ${join(CONFIG.outDir, CONFIG.imagesSubdir)}/  ← upload to a PRIVATE Supabase bucket, never public/`);
+  phase("build complete");
+  const summary = [...counters.entries()].map(([c2, n]) => `${c2}:${n}`).join("  ") || "(none)";
+  step("built", signal(bold(String(keepers.length))) + ` targets · ${summary}`);
+  step("images", `${join(CONFIG.outDir, CONFIG.imagesSubdir)}/ ${amber("-> PRIVATE bucket only, never public/")}`);
+  step("next", bold("bun run seed:upload"));
 }
 
 // --- dispatch ---------------------------------------------------------------
