@@ -87,33 +87,36 @@
       </section>
     </div>
 
-    <!-- AOL block -->
-    <div class="aol-block" style="padding: 12px 16px; border-radius: 4px; margin-top: 12px">
-      <div class="label-mono" style="color: var(--psy-text-faint); font-style: italic; margin-bottom: 8px">
-        aol_log · set_aside
+    <!-- Set-aside card: AOL log + notes -->
+    <div class="setaside-card">
+      <div class="setaside-section">
+        <div class="label-mono" style="color: var(--psy-text-faint); font-style: italic; margin-bottom: 8px">
+          aol_log · set_aside
+        </div>
+        <p style="font-size: 12px; color: var(--psy-text-faint); font-style: italic; margin-bottom: 8px">
+          Dump analytic guesses here to clear them from your mind. They are recorded separately.
+        </p>
+        <UTextarea
+          v-model="aolText"
+          class="w-full"
+          placeholder="lighthouse, mountain, machinery…"
+          :rows="3"
+          style="font-size: 13px; font-style: italic; color: var(--psy-text); resize: none"
+          @input="scheduleSave"
+        />
       </div>
-      <p style="font-size: 12px; color: var(--psy-text-faint); font-style: italic; margin-bottom: 8px">
-        Dump analytic guesses here to clear them from your mind. They are recorded separately.
-      </p>
-      <UTextarea
-        v-model="aolText"
-        placeholder="lighthouse, mountain, machinery…"
-        :rows="2"
-        style="font-size: 13px; font-style: italic; color: var(--psy-text); resize: none"
-        @input="scheduleSave"
-      />
-    </div>
 
-    <!-- Notes -->
-    <div style="margin-top: 12px">
-      <div class="field-label label-mono" style="margin-bottom: 6px">notes_</div>
-      <UTextarea
-        v-model="form.notes"
-        placeholder="any other observations…"
-        :rows="2"
-        style="font-size: 13px; resize: none"
-        @input="scheduleSave"
-      />
+      <div class="setaside-section">
+        <div class="field-label label-mono" style="margin-bottom: 6px">notes_</div>
+        <UTextarea
+          v-model="form.notes"
+          class="w-full"
+          placeholder="any other observations…"
+          :rows="3"
+          style="font-size: 13px; resize: none"
+          @input="scheduleSave"
+        />
+      </div>
     </div>
 
     <!-- Lock button -->
@@ -528,6 +531,20 @@ onMounted(async () => {
   border-color: var(--psy-tan);
   color: var(--psy-tan);
   background: rgba(154, 123, 58, 0.08);
+}
+
+/* Set-aside card — matches the protocol step cards & history info cards */
+.setaside-card {
+  margin-top: 12px;
+  padding: 20px 24px;
+  background: var(--psy-bg-base);
+  border: 1px solid var(--psy-line);
+}
+
+.setaside-section + .setaside-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--psy-line);
 }
 
 .lock-row {

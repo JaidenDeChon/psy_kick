@@ -54,7 +54,7 @@
           A long-form, low-arousal protocol — perception gathered in a near-sleep state
           rather than staged on the page.
         </p>
-        <div class="card-meta">on the bench</div>
+        <div class="card-meta">coming soon</div>
         <div class="card-locked">▢ locked</div>
       </div>
 
@@ -66,10 +66,9 @@
         </div>
         <div class="card-name card-name--muted">associative<br>remote viewing</div>
         <p class="card-desc card-desc--faint">
-          Perception bound to a future outcome through a decoy image pair — the protocol
-          behind prediction tasks.
+          Perception bound to a future outcome through a decoy image pair
         </p>
-        <div class="card-meta">on the bench</div>
+        <div class="card-meta">coming soon</div>
         <div class="card-locked">▢ locked</div>
       </div>
     </div>
@@ -102,13 +101,13 @@ const errorMsg = ref('')
 const activeSession = ref<{ id: string; status: string; reference_number: string } | null>(null)
 
 const loopStages = [
-  { n: '01', label: 'ready',   desc: 'calm entry · server picks a secret target', tone: 'faint'  },
-  { n: '02', label: 'prepare', desc: 'calm down · prepare to view',                tone: 'signal' },
+  { n: '01', label: 'ready',   desc: 'server picks a secret target',              tone: 'faint'  },
+  { n: '02', label: 'prepare', desc: 'calm down, prepare to view',                tone: 'signal' },
   { n: '03', label: 'capture', desc: 'record impressions, set guesses aside',      tone: 'faint'  },
-  { n: '04', label: 'lock',    desc: 'lock in your notes, drawings',               tone: 'locked' },
-  { n: '05', label: 'judge',   desc: 'rank vs 3 decoys',                           tone: 'faint'  },
-  { n: '06', label: 'reveal',  desc: 'the payoff · image settles',                 tone: 'signal' },
-  { n: '07', label: 'result',  desc: 'score · saved to history',                   tone: 'faint'  },
+  { n: '04', label: 'lock',    desc: 'lock in your notes + drawings',              tone: 'locked' },
+  { n: '05', label: 'judge',   desc: 'rank your viewing against the real result + 3 decoys', tone: 'faint' },
+  { n: '06', label: 'reveal',  desc: 'target is revealed',                         tone: 'signal' },
+  { n: '07', label: 'result',  desc: 'score breakdown',                            tone: 'faint'  },
 ]
 
 const resumeUrl = computed(() => {

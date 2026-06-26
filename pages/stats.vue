@@ -47,7 +47,7 @@
 
       <!-- Callout -->
       <div class="callout">
-        {{ callout.lead }}<span class="tan">confident signal needs ~30+ sessions</span>.{{ callout.trail }}
+        <span class="tan">You don't have many sessions yet</span>, so these scores will be less helpful (for now). You should have about 30 sessions for a confident signal to arise. Keep viewing!
       </div>
 
       <!-- Statistics detail (quiet) -->
@@ -151,16 +151,6 @@ const axisLabels = computed(() => {
     const idx = Math.round((k / (ticks - 1)) * (total - 1))
     return `s${idx + 1}`
   })
-})
-
-const callout = computed(() => {
-  const n = stats.value?.n ?? 0
-  const r = stats.value?.hitRate ?? 0
-  let lead: string
-  if (r > 0.25) lead = `Above chance — but with n=${n} a run like this happens often by luck. A `
-  else if (r < 0.25) lead = `Below chance so far — with n=${n} that's well within the range of luck. A `
-  else lead = `Right at chance with n=${n}. A `
-  return { lead, trail: ' Keep going; the line earns its meaning slowly.' }
 })
 
 onMounted(async () => {

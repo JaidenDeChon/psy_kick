@@ -17,14 +17,33 @@
       <p style="font-size: 13px; font-family: var(--psy-font-mono); color: var(--psy-text-faint); margin-top: 8px">clear your mind before capturing impressions</p>
     </div>
 
-    <UButton
-      size="lg"
-      variant="outline"
-      style="font-family: var(--psy-font-mono); letter-spacing: 0.06em"
-      @click="enter"
-    >
-      begin →
-    </UButton>
+    <div class="action-row">
+      <UButton
+        size="lg"
+        color="neutral"
+        variant="outline"
+        style="font-family: var(--psy-font-mono); letter-spacing: 0.06em"
+        @click="showHelp = true"
+      >
+        wait, how do I do this?
+      </UButton>
+      <UButton
+        size="lg"
+        variant="outline"
+        style="font-family: var(--psy-font-mono); letter-spacing: 0.06em"
+        @click="enter"
+      >
+        begin →
+      </UButton>
+    </div>
+
+    <!-- Explainer modal (copy TBD) -->
+    <UModal v-model:open="showHelp" title="how this works">
+      <template #body>
+        <!-- explainer content goes here -->
+        <div class="help-body" />
+      </template>
+    </UModal>
   </div>
 </template>
 
@@ -35,6 +54,7 @@ const { apiFetch } = useApi()
 
 const sessionId = route.params.id as string
 const referenceNumber = ref('')
+const showHelp = ref(false)
 
 // Load session to get reference number
 onMounted(async () => {
@@ -111,5 +131,17 @@ function enter() {
 
 .breathe-copy {
   text-align: center;
+}
+
+.action-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.help-body {
+  min-height: 80px;
 }
 </style>

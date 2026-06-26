@@ -221,13 +221,6 @@ body {
   color: var(--psy-signal);
 }
 
-/* AOL block — dashed, muted */
-.aol-block {
-  border: 1px dashed var(--psy-line);
-  background: transparent;
-  opacity: 0.75;
-}
-
 /* Panel card */
 .psy-panel {
   background-color: var(--psy-bg-panel);
