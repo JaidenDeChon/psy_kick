@@ -224,10 +224,10 @@ otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
-# Production email goes through Resend. These values are applied to the CLOUD
-# project's auth SMTP (via the dashboard / Management API), NOT here — local dev
-# stays on Mailpit. Kept commented for reference/reproducibility. admin_email must
-# be an address on a Resend-verified sending domain.
+# Production email goes through Resend, applied to the CLOUD project's auth SMTP via the
+# Management API (set 2026-06-25; sender psy_kick_noreply@jaiden.dev). Kept commented so
+# local dev stays on Mailpit. ⚠️ DO NOT `supabase config push` — it would reset cloud SMTP
+# back to this commented (disabled) state. admin_email must be on a Resend-verified domain.
 # [auth.email.smtp]
 # enabled = true
 # host = "smtp.resend.com"
@@ -314,9 +314,13 @@ max_frequency = "5s"
 # `discord`, `facebook`, `github`, `gitlab`, `google`, `keycloak`, `linkedin_oidc`, `notion`, `twitch`,
 # `twitter`, `x`, `slack`, `spotify`, `workos`, `zoom`.
 [auth.external.google]
-# Disabled until real Google Cloud OAuth credentials exist (plan §5). When they
-# do: set the two env vars and flip enabled = true. The "continue with google"
-# button is wired in the UI but cannot be end-to-end verified locally without these.
+# Google OAuth is ENABLED ON THE CLOUD PROJECT (set 2026-06-25 via the Management API:
+# external_google_enabled/client_id/secret). This block stays disabled because it only
+# governs LOCAL `supabase start`, which has no Google creds. The "continue with google"
+# button is wired in the UI; verified live against cloud (Supabase → accounts.google.com).
+# ⚠️ DO NOT run `supabase config push` — it would push enabled = false and DISABLE Google
+#    on cloud. Same for the commented Resend SMTP block above. Manage cloud auth secrets
+#    via the Management API only (PATCH /v1/projects/<ref>/config/auth).
 enabled = false
 client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
