@@ -1,11 +1,39 @@
 <template>
   <DialogShell v-model:open="open" eyebrow="get ready to read a lot" title="how_this_works" width-class="w-[680px]">
     <div class="hiw">
+      <!-- nav (top) — duplicated at the bottom; both share .hiw-nav / .hiw-btn -->
+      <div class="hiw-nav">
+        <UButton
+          size="md"
+          color="neutral"
+          variant="outline"
+          class="hiw-btn"
+          :disabled="idx === 0"
+          @click="prev"
+        >
+          ← back
+        </UButton>
+
+        <span class="hiw-pos">{{ idx + 1 }} / {{ slides.length }}</span>
+
+        <UButton
+          size="md"
+          color="neutral"
+          variant="outline"
+          class="hiw-btn"
+          :disabled="idx === slides.length - 1"
+          @click="next"
+        >
+          next →
+        </UButton>
+      </div>
+
       <!-- The animated slide (steps 01–07; the intro has none). Every
            illustration is rendered at once, stacked into a single grid cell, so
            the stage always reserves the tallest one's height — the dialog never
            resizes between slides. Only the current slide's illustration is
-           visible (see .hiw-art below). -->
+           visible, and every non-current one is `paused` so its animation doesn't
+           start (and starts fresh) until you land on its slide. -->
       <div v-if="current.comp" class="hiw-stage">
         <component
           :is="s.comp"
@@ -13,6 +41,7 @@
           :key="s.n"
           class="hiw-art"
           :class="{ 'is-active': s.n === current.n }"
+          :paused="s.n !== current.n"
         />
       </div>
 
@@ -33,7 +62,7 @@
         </div>
       </div>
 
-      <!-- back / next, pinned to the bottom of the dialog body -->
+      <!-- nav (bottom) — mirror of the top nav -->
       <div class="hiw-nav">
         <UButton
           size="md"
@@ -159,6 +188,13 @@ watch(open, (isOpen) => {
 .hiw-btn {
   font-family: var(--psy-font-mono);
   letter-spacing: 0.06em;
+}
+
+/* Make the disabled end-of-range button read as clearly inert. Slightly higher
+   specificity than Nuxt UI's own disabled utilities so these win. */
+.hiw-nav .hiw-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 .hiw-pos {
