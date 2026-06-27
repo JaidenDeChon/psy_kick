@@ -14,16 +14,11 @@
       </div>
     </div>
 
-    <!-- PERCEPTIONS panel -->
-    <div class="psy-panel signal-top perceptions-panel">
-      <div class="panel-label">
-        <span class="label-mono signal-text">perceptions · the_signal</span>
-      </div>
-
-      <!-- Stage 1: Ideogram + gestalt -->
-      <section class="stage-section">
-        <div class="stage-label label-mono">stage_1 · initial_gestalt</div>
-
+    <!-- Capture cards — each grouping stands on its own; the separation does the
+         work that section headings used to. Only genuine CRV terms are labelled. -->
+    <div class="capture-cards">
+      <!-- Ideogram + gestalt -->
+      <section class="capture-card signal-top">
         <div class="ideogram-row">
           <div class="field-col">
             <div class="field-label label-mono">ideogram_</div>
@@ -47,9 +42,8 @@
         </div>
       </section>
 
-      <!-- Stage 2: Sensory -->
-      <section class="stage-section">
-        <div class="stage-label label-mono">stage_2 · sensory_impressions</div>
+      <!-- Sensory impressions -->
+      <section class="capture-card">
         <div class="sensory-grid">
           <div v-for="field in SENSORY_FIELDS" :key="field.key" class="sensory-field">
             <label class="field-label label-mono">{{ field.label }}</label>
@@ -65,35 +59,35 @@
         </div>
       </section>
 
-      <!-- Stage 3: Dimensional + sketch -->
-      <section class="stage-section">
-        <div class="stage-label label-mono">stage_3 · dimensional_&amp;_form</div>
-
-        <div class="field-label label-mono" style="margin-bottom: 8px">dimensional_</div>
-        <div class="tag-group" style="margin-bottom: 16px">
-          <button
-            v-for="tag in DIMENSIONAL_TAGS"
-            :key="tag"
-            class="tag-chip"
-            :class="{ selected: form.dimensional_tags.includes(tag) }"
-            @click="toggleTag(form.dimensional_tags, tag)"
-          >
-            {{ tag }}
-          </button>
+      <!-- Dimensionals + sketch -->
+      <section class="capture-card">
+        <div class="field-block">
+          <div class="field-label label-mono">dimensional_</div>
+          <div class="tag-group">
+            <button
+              v-for="tag in DIMENSIONAL_TAGS"
+              :key="tag"
+              class="tag-chip"
+              :class="{ selected: form.dimensional_tags.includes(tag) }"
+              @click="toggleTag(form.dimensional_tags, tag)"
+            >
+              {{ tag }}
+            </button>
+          </div>
         </div>
 
-        <div class="field-label label-mono" style="margin-bottom: 8px">sketch_</div>
-        <SketchCanvas v-model="form.sketch" size="normal" :locked="false" />
+        <div class="field-block">
+          <div class="field-label label-mono">sketch_</div>
+          <SketchCanvas v-model="form.sketch" size="normal" :locked="false" />
+        </div>
       </section>
-    </div>
 
-    <!-- Set-aside card: AOL log + notes -->
-    <div class="setaside-card">
-      <div class="setaside-section">
+      <!-- AOL — set aside, recorded separately -->
+      <section class="capture-card setaside-card">
         <div class="label-mono" style="color: var(--psy-text-faint); font-style: italic; margin-bottom: 8px">
           aol_log · set_aside
         </div>
-        <p style="font-size: 12px; color: var(--psy-text-faint); font-style: italic; margin-bottom: 8px">
+        <p style="font-size: 12px; color: var(--psy-text-faint); font-style: italic; margin-bottom: 10px">
           Dump analytic guesses here to clear them from your mind. They are recorded separately.
         </p>
         <UTextarea
@@ -104,10 +98,11 @@
           style="font-size: 13px; font-style: italic; color: var(--psy-text); resize: none"
           @input="scheduleSave"
         />
-      </div>
+      </section>
 
-      <div class="setaside-section">
-        <div class="field-label label-mono" style="margin-bottom: 6px">notes_</div>
+      <!-- Notes -->
+      <section class="capture-card setaside-card">
+        <div class="field-label label-mono">notes_</div>
         <UTextarea
           v-model="form.notes"
           class="w-full"
@@ -116,7 +111,7 @@
           style="font-size: 13px; resize: none"
           @input="scheduleSave"
         />
-      </div>
+      </section>
     </div>
 
     <!-- Lock button -->
@@ -445,29 +440,32 @@ onMounted(async () => {
   background: var(--psy-tan);
 }
 
-.perceptions-panel {
-  margin-top: 0;
+/* ── Card system ──────────────────────────────────────────────────────────────
+   Each perception grouping is its own card. Generous padding + a roomy gap
+   between cards keeps the page calm rather than dense; the separation alone
+   implies the grouping, so no per-card section headings are needed. */
+.capture-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
 }
 
-.panel-label {
-  margin-bottom: 20px;
+.capture-card {
+  background: var(--psy-bg-panel);
+  border: 1px solid var(--psy-line);
+  border-radius: var(--psy-radius-lg);
+  padding: 28px 26px;
 }
 
-.stage-section {
-  padding-top: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--psy-line);
+/* Ease the roomier padding back a touch on small screens so content keeps width */
+@media (max-width: 540px) {
+  .capture-card { padding: 22px 18px; }
+  .capture-cards { gap: 18px; }
 }
 
-.stage-section:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.stage-label {
-  font-size: 10px;
-  color: var(--psy-text-faint);
-  margin-bottom: 12px;
+/* Stack of labelled blocks inside a single card (dimensionals + sketch) */
+.field-block + .field-block {
+  margin-top: 24px;
 }
 
 .field-label {
@@ -480,7 +478,7 @@ onMounted(async () => {
 .ideogram-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 20px;
 }
 
 .field-col {
@@ -491,7 +489,7 @@ onMounted(async () => {
 .sensory-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
+  gap: 16px;
 }
 
 .sensory-field {
@@ -529,18 +527,9 @@ onMounted(async () => {
   background: rgba(154, 123, 58, 0.08);
 }
 
-/* Set-aside card — matches the protocol step cards & history info cards */
+/* Set-aside cards (AOL + notes) — quieter register than the perception cards */
 .setaside-card {
-  margin-top: 12px;
-  padding: 20px 24px;
   background: var(--psy-bg-base);
-  border: 1px solid var(--psy-line);
-}
-
-.setaside-section + .setaside-section {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--psy-line);
 }
 
 .lock-row {
