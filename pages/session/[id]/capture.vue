@@ -18,7 +18,7 @@
          work that section headings used to. Only genuine CRV terms are labelled. -->
     <div class="capture-cards">
       <!-- Ideogram + gestalt -->
-      <section class="capture-card signal-top">
+      <section class="psy-card capture-card capture-card--signal">
         <div class="ideogram-row">
           <div class="field-col">
             <div class="field-label label-mono">ideogram_</div>
@@ -43,7 +43,7 @@
       </section>
 
       <!-- Sensory impressions -->
-      <section class="capture-card">
+      <section class="psy-card capture-card">
         <div class="sensory-grid">
           <div v-for="field in SENSORY_FIELDS" :key="field.key" class="sensory-field">
             <label class="field-label label-mono">{{ field.label }}</label>
@@ -60,7 +60,7 @@
       </section>
 
       <!-- Dimensionals + sketch -->
-      <section class="capture-card">
+      <section class="psy-card capture-card">
         <div class="field-block">
           <div class="field-label label-mono">dimensional_</div>
           <div class="tag-group">
@@ -83,7 +83,7 @@
       </section>
 
       <!-- AOL — set aside, recorded separately -->
-      <section class="capture-card">
+      <section class="psy-card capture-card">
         <div class="label-mono" style="color: var(--psy-text-faint); font-style: italic; margin-bottom: 8px">
           aol_log · set_aside
         </div>
@@ -101,7 +101,7 @@
       </section>
 
       <!-- Notes -->
-      <section class="capture-card">
+      <section class="psy-card capture-card">
         <div class="field-label label-mono">notes_</div>
         <UTextarea
           v-model="form.notes"
@@ -450,11 +450,16 @@ onMounted(async () => {
   gap: 22px;
 }
 
+/* Surface (paper fill + hairline + sharp corners) comes from the shared
+   .psy-card; here we only set the roomier padding this page wants. */
 .capture-card {
-  background: var(--psy-bg-panel);
-  border: 1px solid var(--psy-line);
-  border-radius: var(--psy-radius-lg);
   padding: 28px 26px;
+}
+
+/* The one signal moment on the page — start of capture gets the blue top rule.
+   Scoped + two classes so it reliably beats .psy-card's all-sides border. */
+.capture-card--signal {
+  border-top: 2px solid var(--psy-signal);
 }
 
 /* Ease the roomier padding back a touch on small screens so content keeps width */

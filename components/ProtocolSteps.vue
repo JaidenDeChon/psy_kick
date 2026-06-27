@@ -17,7 +17,7 @@
 
     <div v-if="showSteps" class="steps" :class="[`steps--${layout}`, { 'steps--bare': bare }]">
       <!-- 01 -->
-      <div v-if="showStep(1)" class="step-card">
+      <div v-if="showStep(1)" class="psy-card step-card">
         <div class="step-num">01</div>
         <div class="step-name">clear your mind</div>
         <div class="step-desc">
@@ -30,7 +30,7 @@
       </div>
 
       <!-- 02 -->
-      <div v-if="showStep(2)" class="step-card">
+      <div v-if="showStep(2)" class="psy-card step-card">
         <div class="step-num">02</div>
         <div class="step-name">draw an ideogram</div>
         <div class="step-desc">
@@ -44,7 +44,7 @@
       </div>
 
       <!-- 03 -->
-      <div v-if="showStep(3)" class="step-card">
+      <div v-if="showStep(3)" class="psy-card step-card">
         <div class="step-num step-num--signal">03</div>
         <div class="step-name">begin capturing</div>
         <div class="step-desc">
@@ -58,7 +58,7 @@
       </div>
 
       <!-- 04 -->
-      <div v-if="showStep(4)" class="step-card">
+      <div v-if="showStep(4)" class="psy-card step-card">
         <div class="step-num">04</div>
         <div class="step-name">lock in</div>
         <div class="step-desc">
@@ -67,7 +67,7 @@
       </div>
 
       <!-- 05 -->
-      <div v-if="showStep(5)" class="step-card">
+      <div v-if="showStep(5)" class="psy-card step-card">
         <div class="step-num">05</div>
         <div class="step-name">judge vs decoys</div>
         <div class="step-desc">
@@ -81,7 +81,7 @@
       </div>
 
       <!-- 06 -->
-      <div v-if="showStep(6)" class="step-card">
+      <div v-if="showStep(6)" class="psy-card step-card">
         <div class="step-num step-num--signal">06</div>
         <div class="step-name">reveal the target</div>
         <div class="step-desc">
@@ -94,7 +94,7 @@
       </div>
 
       <!-- 07 -->
-      <div v-if="showStep(7)" class="step-card">
+      <div v-if="showStep(7)" class="psy-card step-card">
         <div class="step-num">07</div>
         <div class="step-name">see your results</div>
         <div class="step-desc">
@@ -223,12 +223,11 @@ const showStep = (n: number) => props.only === undefined || props.only === n
 }
 
 /* ── Card (the dialog card design, shared everywhere) ─────────────────────── */
+/* Surface comes from the shared global .psy-card; this only adds layout + padding. */
 .step-card {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: var(--psy-bg-base);
-  border: 1px solid var(--psy-line);
   padding: 18px 16px;
 }
 
