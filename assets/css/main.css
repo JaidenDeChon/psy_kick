@@ -221,7 +221,26 @@ body {
   color: var(--psy-signal);
 }
 
-/* Panel card */
+/* -----------------------------------------------------------------------------
+   CARDS — two registers, one source of truth each.
+
+   .psy-card  → THE default content card. Flat paper surface, hairline rule,
+                sharp corners (the declassified-document look). This is what the
+                sessions, history, review, settings, protocol-step and capture
+                cards all use. Reach for this by default. Padding is left to the
+                consumer so each context can set its own rhythm.
+
+   .psy-panel → the rarer ELEVATED / accented surface (raised brown fill, soft
+                corners). Use only when something should read as lifted off the
+                page — e.g. the inline summary inside a dialog. Do NOT use it for
+                ordinary content cards.
+   --------------------------------------------------------------------------- */
+.psy-card {
+  background-color: var(--psy-bg-base);
+  border: 1px solid var(--psy-line);
+}
+
+/* Panel card — elevated/accent surface (see note above) */
 .psy-panel {
   background-color: var(--psy-bg-panel);
   border: 1px solid var(--psy-line);
