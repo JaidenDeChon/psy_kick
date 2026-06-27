@@ -83,7 +83,7 @@
       </section>
 
       <!-- AOL — set aside, recorded separately -->
-      <section class="capture-card setaside-card">
+      <section class="capture-card">
         <div class="label-mono" style="color: var(--psy-text-faint); font-style: italic; margin-bottom: 8px">
           aol_log · set_aside
         </div>
@@ -101,7 +101,7 @@
       </section>
 
       <!-- Notes -->
-      <section class="capture-card setaside-card">
+      <section class="capture-card">
         <div class="field-label label-mono">notes_</div>
         <UTextarea
           v-model="form.notes"
@@ -525,11 +525,6 @@ onMounted(async () => {
   border-color: var(--psy-tan);
   color: var(--psy-tan);
   background: rgba(154, 123, 58, 0.08);
-}
-
-/* Set-aside cards (AOL + notes) — quieter register than the perception cards */
-.setaside-card {
-  background: var(--psy-bg-base);
 }
 
 .lock-row {
