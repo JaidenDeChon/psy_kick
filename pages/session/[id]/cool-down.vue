@@ -6,11 +6,7 @@
     </div>
 
     <!-- Breathing orb -->
-    <div class="orb-container">
-      <div class="orb-ring psy-glow" :style="ring1Style" />
-      <div class="orb-ring psy-glow" :style="ring2Style" />
-      <div class="orb-core psy-glow" />
-    </div>
+    <BreatheLoop />
 
     <div class="breathe-copy">
       <p style="font-size: 18px; color: var(--psy-text-muted); font-weight: 300; letter-spacing: 0.04em">breathe. settle.</p>
@@ -55,6 +51,8 @@
 </template>
 
 <script setup lang="ts">
+import BreatheLoop from '~/components/illustrations/crv/BreatheLoop.vue'
+
 const route = useRoute()
 const router = useRouter()
 const { apiFetch } = useApi()
@@ -77,9 +75,6 @@ onMounted(async () => {
     router.replace('/')
   }
 })
-
-const ring1Style = { animation: 'psy-ring 3.5s ease-out infinite' }
-const ring2Style = { animation: 'psy-ring 3.5s ease-out infinite 1.75s' }
 
 function enter() {
   router.push(`/session/${sessionId}/capture`)
@@ -122,32 +117,6 @@ async function cancelSession() {
   font-size: 34px;
   font-weight: 600;
   color: var(--psy-signal);
-}
-
-.orb-container {
-  position: relative;
-  width: 140px;
-  height: 140px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.orb-core {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--psy-signal-400, #339BFF), var(--psy-signal));
-  animation: psy-breath 4.6s ease-in-out infinite;
-}
-
-.orb-ring {
-  position: absolute;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  border: 2px solid var(--psy-signal);
-  opacity: 0;
 }
 
 .breathe-copy {
